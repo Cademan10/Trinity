@@ -211,11 +211,11 @@ class Spectrum(QMainWindow):
         #self.s2.setTickPosition(QSlider.TicksAbove)
         self.s2.setSingleStep(.0001)
         self.s2.setTickInterval(1)
-        self.s1.setPageStep(0)
+        self.s2.setPageStep(0)
         self.s2.sliderPressed.connect(self.sliderPressed)
         self.s2.sliderReleased.connect(self.sliderReleased)
         self.s2.valueChanged.connect(self.Move_X)
-        self.pressed=False
+        self.s2.setFocusPolicy(Qt.NoFocus)
         
         #Creates a tab widget
         self.tabs = QTabWidget()
@@ -342,9 +342,7 @@ class Spectrum(QMainWindow):
         
     def NewFile(self):
         
-        
-        #Refreshes the plot
-        Spectrum.Refresh(self)
+
   
 
             
@@ -360,10 +358,17 @@ class Spectrum(QMainWindow):
         if self.newfile=="":
             if len(self.previousfilenames)==0:
                 self.newfile=project_directory+"\default_data.txt"
+                
+            #If the user decides not to upload a new file, it will simply 
+            #return back to the original file with nothing changed 
             if len(self.previousfilenames)>0:
-                self.newfile=self.previousfilepaths[-1]
+                self.newfile=self.previousfilenames[-1]
+                return
             self.plt.setRange(xRange=[0,10],yRange=[0,10])
-            
+        
+        #Refreshes the plot
+        Spectrum.Refresh(self)
+        
         newBase=os.path.basename(self.newfile)
         newFileName=os.path.splitext((newBase))[0]
         self.previousfilenames.append(newFileName)
@@ -499,9 +504,7 @@ class Spectrum(QMainWindow):
         except:
             pass
             
-        if self.zoomAction.isChecked()==True:
-            self.s1.setValue(self.y_value)
-            self.s2.setValue(self.x_value)
+   
         if self.mcmcAction.isChecked()==True:
             self.plt.removeItem(self.reg1fill)
             self.plt.removeItem(self.reg2fill)
@@ -759,12 +762,12 @@ Expanded to full view""")
                     
                     
                     self.start=10000*((self.minx-self.x[0])/(self.x_avg))/m
-                    
+           
                     self.increment=(m*self.x_avg)/10000
                          
                
                     self.s2.setValue(int(round(self.start)))
-                
+                    
                 
                     self.zoomRegStorage.append([self.minx,self.maxx,self.Ymax,self.Ymax])
                     
@@ -894,7 +897,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
         self.grid.addWidget(self.s2,2,1,1,2)
         self.s2.setHidden(False)
         self.s2.setValue(int(round(self.start)))
-        
+    
         
         
         self.plt.setRange(xRange=[midChan-reducedChanRangePerSide,midChan+reducedChanRangePerSide])
@@ -991,27 +994,20 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
      
     def Move_X(self, value):
         
-        #The slider can move without actually using the slider tab
-        #This prevents that from happening 
-        if self.pressed==False:
-            try:
-                
-                self.s2.setValue(int(round(self.endSlideVal)))
-            except:
-                self.s2.setValue(int(round(self.start)))
-        else:
+  
         
-            self.xvar=(value-self.start)*self.increment
+      self.xvar=(value-self.start)*self.increment
         
-            self.plt.setRange(xRange=[self.minx+self.xvar,self.maxx+self.xvar])
-        
+      self.plt.setRange(xRange=[self.minx+self.xvar,self.maxx+self.xvar])
+      
+      if self.minx+self.xvar<self.x[0]:
+            self.plt.setRange(xRange=[self.x[0],self.maxx+self.xvar])
+      if self.maxx+self.xvar>self.x[-1]:
+            self.plt.setRange(xRange=[self.minx+self.xvar,self.x[-1]])
      
         
            
-            if self.minx+self.xvar<self.x[0]:
-                self.plt.setRange(xRange=[self.x[0],self.maxx+self.xvar])
-            if self.maxx+self.xvar>self.x[-1]:
-                self.plt.setRange(xRange=[self.minx+self.xvar,self.x[-1]])
+        
      
         
          
@@ -1167,7 +1163,7 @@ Converted to Log Scale""")
   
             for i in range(len(self.y)):
                 if self.y[i]<=0:
-                    logy.append(1)
+                    logy.append(.1)
                 else:
                     logy.append(self.y[i])
                     
@@ -1208,7 +1204,7 @@ Converted to Log Scale""")
                 y=[]
                 for i in range(len(self.peaky)):
                     if self.peaky[i]<=0:
-                        y.append(1)
+                        y.append(.1)
                     else:
                         y.append(np.log10(self.peaky[i]))
                 
@@ -1230,13 +1226,13 @@ Converted to Log Scale""")
                     y2=[]
                     for i in range(len(self.reg1yrange)):
                         if self.reg1yrange[i]<=0:
-                            y1.append(1)
+                            y1.append(.1)
                         else:
                             y1.append(np.log10(self.reg1yrange[i]))
                             
                     for i in range(len(self.reg2yrange)):
                         if self.reg2yrange[i]<=0:
-                            y2.append(1)
+                            y2.append(.1)
                         else:
                             y2.append(np.log10(self.reg2yrange[i]))
                     
@@ -1777,10 +1773,14 @@ Select Peak first""")
     def Sum(self,PeakSelect):
         if self.sumAction.isChecked()==True:
             
-            
+            if self.peakSelect.isChecked()==False:
+                self.dataWidget.append(
+"""
+Select peak first!""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+                self.sumAction.setChecked(False)
     
-            self.mcmcAction.setEnabled(False)
-            self.gaussFitAction.setEnabled(False)
+            
 
            
             
@@ -1792,15 +1792,12 @@ Select Peak first""")
                 self.gaussFitAction.setChecked(False)
                 self.sumAction.setChecked(False)
             
-            if self.peakSelect.isChecked()==False:
-                self.dataWidget.append(
-"""
-Select peak first!""")
-                self.dataWidget.moveCursor(QtGui.QTextCursor.End)
-                self.sumAction.setChecked(False)
+        
             
             
             if self.peakSelect.isChecked()==True:
+                self.mcmcAction.setEnabled(False)
+                self.gaussFitAction.setEnabled(False)
                 self.backUsed=0
                 self.plt.removeItem(self.peakReg)
                 
@@ -1867,7 +1864,7 @@ Select peak first!""")
                         
                         for i in range(len(y)):
                             if y[i]==0:
-                                y1.append(1)
+                                y1.append(.1)
                             else:
                                 y1.append(y[i])
                         y1=np.log10(y1)     
@@ -1880,7 +1877,7 @@ Select peak first!""")
                         y2=[]
                         for i in range(len(y)):
                             if y[i]==0:
-                                y2.append(1)
+                                y2.append(.1)
                             else:
                                 y2.append(y[i])
                         y2=np.log10(y2)
@@ -2177,7 +2174,7 @@ Select peak and background first!""")
                         y1=[]
                         for i in range(len(y)):
                             if y[i]==0:
-                                y1.append(1)
+                                y1.append(.1)
                             else:
                                 y1.append(y[i])
                         y1=np.log10(y1)     
@@ -2190,7 +2187,7 @@ Select peak and background first!""")
                         y2=[]
                         for i in range(len(y)):
                             if y[i]==0:
-                                y2.append(1)
+                                y2.append(.1)
                             else:
                                 y2.append(y[i])
                         y2=np.log10(y2)
@@ -2299,7 +2296,16 @@ Select peak and background first!""")
                 tot_width=int(round(sum(obs_tot)))
    
                 bkg_width=int(round(bkg_width))
+                
+                #Having zero as the total width raises an error
+               
+                if tot_width==0:
+                    tot_width=1
+                    print("Detected no counts in the peak region, added 1 count to avoid raising error in the algorithm")
+                    
                 if bkg_width==0:
+                    print("Detected no counts in the background region, added 1 count to avoid raising error in the algorithm")
+          
                     bkg_width=1
                 if sample_size.text()=="" or sample_size.text()==0:
                     samples=3000
@@ -2400,7 +2406,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       's', 'xb'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter)
 
 # <---- rjags
 ######################################################################
@@ -2485,7 +2491,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       'a','bkg'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter)
 samplesmat = as.matrix(mcmcChain)
 HDI68 <- hdi(samplesmat[,1], credMass = 0.68)
 HDI95 <-hdi(samplesmat[,1], credMass = 0.95)
@@ -2567,7 +2573,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       's', 'xb'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter, thin)
 
 
 centvec <- vector()
@@ -2654,7 +2660,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       's', 'xb'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter, thin)
 
 
 centvec <- vector()
@@ -2723,8 +2729,9 @@ return(centvec)
                     trace=np.array(trace)
                 
                 
-                    thin=int(len(trace[0])/1000)
-                    
+                    thin=int(len(trace[0])/2000)
+                    if thin==0:
+                        thin=1
                     
                     
     #Arrays that store  the data from each step of the algorthm
@@ -3554,7 +3561,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       'a', 'b', 'c', 'd','e'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter, thin)
 samplesmat = as.matrix(mcmcChain)
 
 return(samplesmat)
@@ -3610,8 +3617,12 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                 
                 self.dataWidget.moveCursor(QtGui.QTextCursor.End)                       
    
-                thin=int(len(trace[0])/1000)
+                ##Reduces the number of traces drawn for performance 
+                #enhancing reasons 
+                thin=int(len(trace[0])/2500)
             
+                gaussThin=int(len(trace[0])/1000)
+               
                 
             #When log scale is on, it takes tremendously longer to generate the 
             #Gaussian plots for some reason
@@ -3622,8 +3633,9 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                 
                 if thin==0:
                     thin=1
-                
-                for i in range(0,len(trace[0]),thin):
+                if gaussThin==0:
+                    gaussThin=1
+                for i in range(0,len(trace[0]),gaussThin):
                     height=trace[0][i]
                     cent=trace[1][i]
   
