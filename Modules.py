@@ -15,6 +15,7 @@ import matplotlib.pyplot as plotting
 import scipy as sp
 from scipy import stats
 from time import sleep 
+import warnings
 
 #os.environ["R_HOME"] = r"C:\Users\cader\Anaconda3\envs\Rstudio\Lib\R"
 #os.environ['path'] += r';C:\Users\cader\Anaconda3\envs\Rstudio\Lib\R\bin;'
