@@ -23,6 +23,7 @@ class Spectrum(QMainWindow):
         #Turns data into array
         b=np.transpose(data)
         self.x=b[0]
+        self.x=np.append(self.x,self.x[-1]+1)
         self.y=b[1]
         self.plt = pg.PlotWidget()
            
@@ -33,7 +34,7 @@ class Spectrum(QMainWindow):
         self.plt.setLabel("left","Counts per channel")
         self.plt.setLabel("bottom","Channel")
         self.plt.setMouseEnabled(x=False,y=False)
-        self.plot = self.plt.plot(self.x, self.y,pen=pen) 
+        self.plot = self.plt.plot(self.x, self.y,pen=pen, stepMode="center") 
         
       
 
@@ -280,6 +281,12 @@ class Spectrum(QMainWindow):
         self.cursor_label.setFixedHeight(15)
         self.plt.scene().sigMouseMoved.connect(self.mouseMoved)
         
+        self.count_label=QLabel("Channel=0")
+        self.count_label.setFixedWidth(150)
+        self.count_label.setFixedHeight(15)
+       
+        
+        
         self.energy_label=QLabel("Energy=NA")
         self.energy_label.setFixedWidth(150)
         self.energy_label.setFixedHeight(21)
@@ -290,6 +297,7 @@ class Spectrum(QMainWindow):
         
         channelLayout=QVBoxLayout(self.mainApp)
         channelLayout.addWidget(self.cursor_label)
+        channelLayout.addWidget(self.count_label)
         channelLayout.addWidget(self.energy_label)
         
         self.grid.addLayout(channelLayout,0,1)
@@ -338,12 +346,14 @@ class Spectrum(QMainWindow):
         
      
     
-
+    def HistShift(x_vals):
+        return [x-0.5 for x in x_vals]
         
     def NewFile(self):
         
 
-  
+          #Supressess a warning PyQtGraph issues when this function is called 
+        warnings.filterwarnings("ignore", message="Item already added to PlotItem, ignoring")
 
             
         #Uploads new file
@@ -366,23 +376,39 @@ class Spectrum(QMainWindow):
                 return
             self.plt.setRange(xRange=[0,10],yRange=[0,10])
         
-        #Refreshes the plot
-        Spectrum.Refresh(self)
+        
+    
         
         newBase=os.path.basename(self.newfile)
         newFileName=os.path.splitext((newBase))[0]
+        
+        ##Having spaces in filenames causes issues, this raises an error if
+        #it detects such a thing 
+        if len(newFileName.split())>1:
+            self.dataWidget.append("""
+Make sure file name contains no spaces""")
+        
+            self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+        
+            return 
+        
         self.previousfilenames.append(newFileName)
         
         self.previousfilepaths.append(self.newfile)
         
 
         f=open("used_file_storage.txt","a")
+        
+    
+        
         f.write(newFileName+"\t"+self.newfile+"\n")
         f.close()
             
         
         
         if self.newfile!="":
+            
+            Spectrum.Refresh(self)
             
             log=False
             if self.logScale.isChecked()==True:
@@ -398,11 +424,15 @@ class Spectrum(QMainWindow):
             #Histogram requires n+1 x-values for n y-values
             x=int(self.x[-1]+1)
             self.x=np.append(self.x,x)
+            
             self.y =newy
             self.stored_y=self.y
             pen=pg.mkPen(color='k',width=2)
-            self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
-
+        
+            
+            self.histX=Spectrum.HistShift(self.x)
+            self.plot.setData(self.histX, self.y,stepMode="center",pen=pen)
+            
             self.plt.addItem(self.plot)
             
             
@@ -414,8 +444,9 @@ class Spectrum(QMainWindow):
             
         #Automatically changes scale based on new data
             self.plt.enableAutoRange(x=True,y=True )
-            self.plt.enableAutoRange(x=False,y=False)
-   
+            self.plt.enableAutoRange(x=True,y=False)
+            
+           
       
 
         #Takes file name from new file
@@ -530,7 +561,7 @@ class Spectrum(QMainWindow):
             
             
             pen=pg.mkPen(color="k",width=2)
-            self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+            self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
             self.plt.addItem(self.plot)
             
 
@@ -556,8 +587,8 @@ Viewing window cleared""")
             mousePoint = self.plt.plotItem.vb.mapSceneToView(pos)
             if mousePoint.x()<self.x[0]:
                 x=self.x[0]
-            elif mousePoint.x()>self.x[-1]:
-                x=self.x[-1]
+            elif int(round(mousePoint.x()))>self.x[-1]-1:
+                x=self.x[-1]-1
             else:
                 x=mousePoint.x()
                 
@@ -572,6 +603,7 @@ Viewing window cleared""")
             self.posY=y
             
             self.cursor_label.setText("Channel=" +str(int(round(x))))
+            self.count_label.setText("Counts="+str(int(self.y[int(round(x)-self.x[0])])))
             
             
             if len(self.energyCallibrationParamters)!=0:
@@ -1171,7 +1203,8 @@ Converted to Log Scale""")
             pen=pg.mkPen(color='k',width=2)
          
             if self.newfile!="":
-                self.plot.setData(logx, logy,pen=pen,stepMode=True)
+                
+                self.plot.setData(Spectrum.HistShift(logx), logy,pen=pen,stepMode="center")
                 self.plt.setLogMode(False,True) 
             
             if len(self.incrementZoomRegStorage)>=1:
@@ -1216,7 +1249,7 @@ Converted to Log Scale""")
                 pen=pg.mkPen(color="k",width=2)
                 brush=pg.mkBrush(color=color)
 
-                self.totalfill.setData(x,y,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 self.plt.addItem(self.totalfill)
                 
                 
@@ -1250,9 +1283,9 @@ Converted to Log Scale""")
                     pen=pg.mkPen(color="k",width=2)
     
                     brush=pg.mkBrush(color=color)
-                    self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                     
-                    self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
         
         if self.logScale.isChecked()==False:
             self.dataWidget.append(
@@ -1261,7 +1294,7 @@ Converted to Linear Scale""")
             self.dataWidget.moveCursor(QtGui.QTextCursor.End)
             pen=pg.mkPen(color='k',width=2)
             if self.newfile!="":
-                self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                 self.plt.setLogMode(False,False)
                 
                 self.plt.setRange(yRange=[min(self.y),max(self.y)])
@@ -1292,7 +1325,7 @@ Converted to Linear Scale""")
                 brush=pg.mkBrush(color=color)
                 x=self.peakx
                 x=np.append(x,x[-1]+1)
-                self.totalfill.setData(x,self.peaky,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),self.peaky,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 self.plt.addItem(self.totalfill)
                 
                 
@@ -1313,9 +1346,9 @@ Converted to Linear Scale""")
                     pen=pg.mkPen(color="k",width=2)
     
                     brush=pg.mkBrush(color=color)
-                    self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
 
-                    self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 
      
                 
@@ -1370,7 +1403,7 @@ Converted to Linear Scale""")
               
                     pen=pg.mkPen(color="k",width=2)
                     self.plt.clear()
-                    self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                    self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                     self.plt.addItem(self.plot)
                     
             
@@ -1562,7 +1595,7 @@ Upload file first""")
                 
                 
                 self.plt.clear()
-                self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                 self.plt.addItem(self.plot)
               
                 
@@ -1742,9 +1775,10 @@ Select Peak first""")
                     x1=np.append(x1,x1[-1]+1)
                     if len(x1)==len(y1):
                         x1=np.append(x1,x1[-1]+1)
+                       
         
                     
-                    self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                     
                     
                     x2=self.x2range 
@@ -1755,7 +1789,8 @@ Select Peak first""")
                     self.reg2fill=pg.PlotCurveItem(name="reg2fill")
                    
                     x2=np.append(x2,x2[-1]+1)
-                    self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                   
+                    self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                     
                     #Creates a line connecting the points created above
                     self.regplot=pg.PlotDataItem(self.backgroundx,self.backgroundy,pen=linepen,name="self.regplot")                    
@@ -1804,6 +1839,7 @@ Select peak first!""")
                 
                 #X and Y assigned the values within the selected peak
                 x=self.peakx
+
                 y=self.peaky
                 
                 color=pg.mkColor(0,255,255,50)
@@ -1816,7 +1852,7 @@ Select peak first!""")
                 x=np.append(x,x[-1]+1)
                 if self.logScale.isChecked()==True:
                     y=np.log10(y)
-                self.totalfill.setData(x,y,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 
                 self.plt.addItem(self.totalfill)
                 
@@ -1859,6 +1895,7 @@ Select peak first!""")
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
                         
+                        
                         y=self.reg1yrange
                         y1=[]
                         
@@ -1873,6 +1910,7 @@ Select peak first!""")
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+                        
                         y=self.reg2yrange
                         y2=[]
                         for i in range(len(y)):
@@ -1885,8 +1923,8 @@ Select peak first!""")
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                      
                         
                         
@@ -1894,19 +1932,21 @@ Select peak first!""")
                         color=pg.intColor(0, alpha=50)
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
+                
                         y1=self.reg1yrange
                         
                         while len(x1)<=len(y1):
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+            
                         y2=self.reg2yrange
                         
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                         
                     self.plt.addItem(self.reg1fill)
                     self.plt.addItem(self.reg2fill)
@@ -2150,6 +2190,7 @@ Select peak and background first!""")
                 
                 #Creates a fillable region
                 x=self.peakx
+          
                 y=self.peaky
                 color=pg.mkColor(0,255,255,50)
                 pen=pg.mkPen(color="k",width=2)
@@ -2161,7 +2202,7 @@ Select peak and background first!""")
                     x=np.append(x,x[-1]+1)
                 if self.logScale.isChecked()==True:
                     y=np.log10(y)
-                self.totalfill.setData(x,y,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                    
         
                 
@@ -2169,6 +2210,7 @@ Select peak and background first!""")
                         color=pg.intColor(0, alpha=50)
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
+                    
                         
                         y=self.reg1yrange
                         y1=[]
@@ -2183,6 +2225,7 @@ Select peak and background first!""")
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+                       
                         y=self.reg2yrange
                         y2=[]
                         for i in range(len(y)):
@@ -2195,24 +2238,26 @@ Select peak and background first!""")
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 
                 if self.logScale.isChecked()==False:
                         color=pg.intColor(0, alpha=50)
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
+                       
                         y1=self.reg1yrange
                         while len(x1)<=len(y1):
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+                     
                         y2=self.reg2yrange
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                         
                 #Gets the first and last channel of the selected region
                 firstchannel=int(round(self.peakx[0]))
@@ -3643,7 +3688,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
       
 
                     width=float(trace[2][i])
-                    x_vals = np.linspace(int(self.x1range[0]), int(self.x2range[-1])+1, int(self.x2range[-1]-self.x1range[0]))
+                    x_vals = np.linspace(int(self.x1range[0]), int(self.x2range[-1]), int(self.x2range[-1]-self.x1range[0]))
             
                     y_vals=[]
                     
@@ -3668,14 +3713,15 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
           
                
                 regXRange=list(range(int(round(self.x1range[0])),int(round(self.x2range[-1]))+1))
+            
                 regYRange=self.y[int(regXRange[0]-self.x[0]):int(regXRange[-1]-self.x[0])+1]
                
                 regXRange.append(regXRange[-1]+1)
                 regXRange=np.array(regXRange)
                 highlightPen=pg.mkPen(color="b",width=2,alpha=100)
                
-               
-                self.plt.plot(regXRange,regYRange,pen=highlightPen,stepMode=True,name="regionHighlight")
+                
+                self.plt.plot(Spectrum.HistShift(regXRange),regYRange,pen=highlightPen,stepMode="center",name="regionHighlight")
                
                 
                
@@ -3958,7 +4004,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     
                     pen=pg.mkPen(color="k",width=2)
                     self.plt.clear()
-                    self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                    self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                     self.plt.addItem(self.plot)
                     
                     self.peakReg.setRegion((self.xmin,self.xmax))
