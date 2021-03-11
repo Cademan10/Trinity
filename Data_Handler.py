@@ -297,7 +297,7 @@ class Spectrum(QMainWindow):
         
         channelLayout=QVBoxLayout(self.mainApp)
         channelLayout.addWidget(self.cursor_label)
-        channelLayout.addWidget(self.count_label)
+        #channelLayout.addWidget(self.count_label)
         channelLayout.addWidget(self.energy_label)
         
         self.grid.addLayout(channelLayout,0,1)
@@ -603,7 +603,7 @@ Viewing window cleared""")
             self.posY=y
             
             self.cursor_label.setText("Channel=" +str(int(round(x))))
-            self.count_label.setText("Counts="+str(int(self.y[int(round(x)-self.x[0])])))
+            #self.count_label.setText("Counts="+str(int(self.y[int(round(x)-self.x[0])])))
             
             
             if len(self.energyCallibrationParamters)!=0:
@@ -636,7 +636,12 @@ Viewing window cleared""")
     def zoomCursor(self):
         if self.newfile!="":
             
+            ##Prevents user from using zoom feature if peak and or background 
+            #regions are highlighted 
             if self.peakSelect.isChecked()==True or self.backSelec.isChecked()==True:
+                self.dataWidget.append(
+"""
+Deselect peak/background highkight region(s) to zoom in""")
                 self.zoomAction.setChecked(False)
                 
 
@@ -657,7 +662,7 @@ Viewing window cleared""")
                 
                 
             
-            if self.peakCounter>1 or self.backCounter>1==True:
+            if self.peakCounter>1 or self.backCounter>1:
                 pass
 
             
@@ -682,6 +687,14 @@ Viewing window cleared""")
             
             
     def ZoomOut(self):
+        
+        if self.peakSelect.isChecked()==True or self.backSelec.isChecked()==True:
+                self.dataWidget.append(
+"""
+Deselect peak/background highkight region(s) to zoom out""")
+                return 
+        
+        
         self.incrementZoomRegStorage.clear()
         self.zoomRegStorage.clear()
         if self.logScale.isChecked()==True:
@@ -2089,29 +2102,19 @@ Centroid= """+str(self.x_mean)+" +/- " + str(self.standerr))
 
             
     def RadioButtonClick(self):
-        if self.b1.isChecked()==True:
-            self.tnProb=True
+        if self.tnProb.isChecked()==True:
             
             self.prob_x1.setEnabled(True)
             self.prob_x2.setEnabled(True)
+        
             
-        if self.b1.isChecked()==False:
-            self.tnProb=False
-            self.b1.setChecked(False)
-            
-
-            
-        if self.b2.isChecked()==True:
-            self.gProb=True
+        if self.gProb.isChecked()==True:
             
             self.prob_x1.setEnabled(True)
             self.prob_x2.setEnabled(True)
+        
             
-        if self.b2.isChecked()==False:
-            self.gProb=False
-            self.b2.setChecked(False)
-            
-        if self.tnProb==False and self.gProb==False:
+        if self.tnProb.isChecked()==False and self.gProb.isChecked()==False:
             self.prob_x1.setEnabled(False)
             self.prob_x2.setEnabled(False)
          
@@ -2126,6 +2129,7 @@ Centroid= """+str(self.x_mean)+" +/- " + str(self.standerr))
                 self.dataWidget.append(
 """
 Select peak and background first!""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 self.mcmcAction.setChecked(False)
                 
             if self.backSelec.isChecked()==True:
@@ -2142,10 +2146,7 @@ Select peak and background first!""")
                 self.prob_x1 = QLineEdit(paraWidget)
                 self.prob_x2=QLineEdit(paraWidget)
                 empty_string=QLabel(paraWidget)
-                
-                
-                self.tnProb=False
-                self.gProb=False
+
                 
                 self.prob_x1.setEnabled(False)
                 self.prob_x2.setEnabled(False)
@@ -2155,16 +2156,15 @@ Select peak and background first!""")
                 self.buttonGroup = QtGui.QButtonGroup()
                 
                 
-                self.b1=QRadioButton("")
-                self.b2=QRadioButton("")
+                self.tnProb=QCheckBox("")
+                self.gProb=QCheckBox("")
+            
                 
-                
-                self.buttonGroup.addButton(self.b1)
-                self.buttonGroup.addButton(self.b2)
-                
-                self.buttonGroup.setExclusive(False)
-                self.b1.toggled.connect(self.RadioButtonClick)
-                self.b2.toggled.connect(self.RadioButtonClick)
+                self.buttonGroup.addButton(self.tnProb)
+                self.buttonGroup.addButton(self.gProb)
+                self.buttonGroup.setExclusive(False)  
+                self.tnProb.toggled.connect(self.RadioButtonClick)
+                self.gProb.toggled.connect(self.RadioButtonClick)
                 
   
 
@@ -2178,14 +2178,26 @@ Select peak and background first!""")
                 layout.addRow("Calculate Probability of Signal Between:",title)
                 layout.addRow("Value 1 ", self.prob_x1)
                 layout.addRow("Value 2 ",self.prob_x2)
-                layout.addRow("Trunc. Norm.",self.b1)
-                layout.addRow("Gamma",self.b2)
+                layout.addRow("Trunc. Norm.",self.tnProb)
+                layout.addRow("Gamma",self.gProb)
                 
     
                 layout.addWidget(buttonBox)
                 buttonBox.accepted.connect(paraWidget.accept)
                 paraWidget.exec()
     
+                
+                ##if no input is added into the window, the algorithm will not run
+                
+                if sample_size.text()=="" and burnin.text()=="" and chain_numbers.text()=="":
+                    self.mcmcAction.setChecked(False)
+                    self.gaussFitAction.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+                    self.dataWidget.append(
+"""
+No parameters selected""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+                    return
                 
                 
                 #Creates a fillable region
@@ -3251,8 +3263,7 @@ Signal Counts Percentiles: """+
                 
                 ######Runs the probability function below 
                 
-                if self.tnProb==True:
-                    self.tnProb=False
+                if self.tnProb.isChecked()==True:
                     try:
                         minChan=int(self.prob_x1.text())
                         maxChan=int(self.prob_x2.text())
@@ -3261,18 +3272,21 @@ Signal Counts Percentiles: """+
                     except:
                         self.dataWidget.append("Invalid channel region chosen for probability calculation")
                         self.dataWidget.moveCursor(QtGui.QTextCursor.End)
-                if self.gProb==True:
-                    self.gProb=False
+                if self.gProb.isChecked()==True:
                     try:
+                        
                         minChan=int(self.prob_x1.text())
+                        
                         maxChan=int(self.prob_x2.text())
+                       
                         data=self.g_s
-                        Spectrum.Prob(self,[minChan,maxChan],data,"Gamma")
+                        
+                 
                     except:
-                        self.dataWidget.append("Invalid channel region chosen for probability calculatio")
+                        self.dataWidget.append("Invalid channel region chosen for probability calculation")
                         self.dataWidget.moveCursor(QtGui.QTextCursor.End)
                         
-    
+                    Spectrum.Prob(self,[minChan,maxChan],data,"Gamma")
                         
                         
                         
@@ -3326,26 +3340,49 @@ Signal Counts Percentiles: """+
         vals2=data
         
         prob1=np.percentile(vals1,[per1])
+   
         while prob1<x1:
+   
             per1+=.05
+            
+            ##If the guess signal count is greater than the 99.95 percentile, then it will
+            ##report it as being in the 100 percentile  
+            if per1>100:
+                per1=100
+                break
             prob1=np.percentile(vals1,[per1])
+        
         
         if per1==0:
             probability1=0
+            
+
+    
+            
         elif abs(np.percentile(vals1,[per1-.05])-x1)>abs(x1-prob1):
             probability1=round(per1,2)
+            
+        #If the previous percentile value is closer to the desired channel, 
+        #it uses that value instead
         else:
             probability1=round(per1-.05,2)
                     
                     
         per2=0
         prob2=np.percentile(vals2,[per2])
+
         while prob2<x2:
             per2+=.05
+            
+            if per2>100:
+                per2=100
+                break
             prob2=np.percentile(vals2,[per2])
         
         if per2==0:
             probability2=0
+        
+            
         elif abs(np.percentile(vals2,[per2-.05])-x2)>abs(x2-prob2):
             probability2=round(per2,2)
         else:
@@ -3354,10 +3391,10 @@ Signal Counts Percentiles: """+
         probability=round(abs(probability2-probability1),2)
            
         summationType=summationType
-               
-        self.dataWidget.append("""
-
-Probability of the signal being between """+str(x1)+" and "+str(x2)+ " counts is "+str(probability)+"% ("+str(summationType)+")")
+    
+        self.dataWidget.append(
+"""
+Probability of the signal count being between """+str(x1)+" and "+str(x2)+ " counts is "+str(probability)+"% ("+str(summationType)+")")
                 
 
         self.dataWidget.moveCursor(QtGui.QTextCursor.End)    
@@ -3441,6 +3478,16 @@ Select peak and background first!""")
     
                 self.fitWidget.exec()
                 
+                if sampleSize.text()=="" and burn.text()=="" and chains.text()=="":
+                    self.gaussFitAction.setChecked(False)
+                    self.mcmcAction.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+                    self.dataWidget.append(
+"""
+No parameters selected""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+                    return    
+            
                 if sampleSize.text()=="":
                     samples=2000
                 if sampleSize.text()!="":
@@ -3458,11 +3505,11 @@ Select peak and background first!""")
                 max_chan=max(self.peakx)
 
                 peakXRange=self.peakx
-                peakCounts=np.array([count if count>0 else 1 for count in self.peaky])
+                peakCounts=self.peaky
                 back1Chans=self.x1range
-                back1Counts=np.array([count if count>0 else 1 for count in self.reg1yrange])
+                back1Counts=self.reg1yrange
                 back2Chans=self.x2range
-                back2Counts=np.array([count if count>0 else 1 for count in self.reg2yrange])
+                back2Counts=self.reg2yrange
                 firstChan=self.peakx[0]
                 lastChan=self.peakx[-1]
                 if self.sigmaS==True:
