@@ -2199,7 +2199,10 @@ No parameters selected""")
                     self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                     return
                 
-                
+                self.dataWidget.append(
+"""
+Running Bayesian MCMC...""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 #Creates a fillable region
                 x=self.peakx
           
@@ -2356,12 +2359,18 @@ No parameters selected""")
                 
                 #Having zero as the total width raises an error
                
+            
                 if tot_width==0:
                     tot_width=1
-                    print("Detected no counts in the peak region, added 1 count to avoid raising error in the algorithm")
-                    
+                    self.dataWidget.append(
+"""
+Detected no counts in the peak region, added 1 count to avoid raising error in the algorithm""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 if bkg_width==0:
-                    print("Detected no counts in the background region, added 1 count to avoid raising error in the algorithm")
+                    self.dataWidget.append(
+"""
+Detected no counts in the background region, added 1 count to avoid raising error in the algorithm""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
           
                     bkg_width=1
                 if sample_size.text()=="" or sample_size.text()==0:
@@ -2390,11 +2399,6 @@ No parameters selected""")
                 peakCounts=self.peaky
                 backCounts=obs_bkg
         
-         
-                self.dataWidget.append(
-"""
-Running Bayesian MCMC...""")
-                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 
                 
                 #I accidentally wrote all of the preceeding code with an extra 
@@ -2866,27 +2870,30 @@ return(centvec)
                         colors.append(colors[i-6])
                 
                 chainplt=pg.PlotWidget()
+                
                 chainplt.addLegend()
                 
                 if self.fileName=="testing":
                     file=open("test_data_storage.dat")
                     self.test_values=file.readlines()
+                    
                     file.close
                     true_count=self.test_values[0].strip().split()
                     true_count=int(true_count[3])
-                    
+                  
                     actual_count=self.test_values[-6].strip().split()
                     actual_count=int(float(actual_count[3]))
 
                     
                     pen1=pg.mkPen("r",width=3)
                     pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
-                    true_mean_line=chainplt.plot(x=true_count,pen=pen1,name="True Mean")
-                    actual_mean_line=chainplt.plot(x=actual_count,pen=pen2,name="Actual Mean")
-                    chainplt.addLine(x=true_count,pen=pen1)
-                    chainplt.addLine(x=actual_count,pen=pen2)
                     
-                
+                    
+                    chainplt.plot(pen=pen1,name="True Mean" )
+                    chainplt.plot(pen=pen2,name="Actual Mean")
+                    chainplt.addLine(x=true_count,pen=pen1, name="True Mean")
+                    chainplt.addLine(x=actual_count,pen=pen2, name="Actual Mean")
+                    
                 t_s_chains=[]
                 g_s_chains=[]
                 
@@ -3064,10 +3071,11 @@ return(centvec)
                     pen1=pg.mkPen("r",width=3)
                     pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
                     
-                    true_centroid_line=centplt.plot(x=true_centroid,y=None,pen=pen1,name="True Centroid" )
-                    actual_centroid_line=centplt.plot(x=actual_centroid,y=None,pen=pen2,name="Actual Centroid")
-                    centplt.addLine(x=true_centroid,y=None,pen=pen1)
-                    centplt.addLine(x=actual_centroid,y=None,pen=pen2)
+                    true_centroid_line=centplt.plot(pen=pen1,name="True Centroid" )
+                    actual_centroid_line=centplt.plot(pen=pen2,name="Actual Centroid")
+                    
+                    centplt.addLine(x=true_centroid,pen=pen1, name="True Centroid")
+                    centplt.addLine(x=actual_centroid,pen=pen2, name="Actual Centroid")
      
             
  
@@ -4130,39 +4138,29 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
         buttonBox.accepted.connect(testWidget.accept)
         self.dataWidget.append(
 """
-Set parameters for test data. The default paramters used are: """ + 
-        """
-Sample Size= 1000"""+
-        """
-Peak Location= Channel 100"""+
-        """
-Width of Peak= 5"""+
-        """
-Background Counts Per Channel= 50"""+
-       """
-Maximum Channel= 200"""+
-       """
-Minimum Chanel= 0"""+
-"""
-Seed= 0""")
+Set parameters for test data.""")
         self.dataWidget.moveCursor(QtGui.QTextCursor.End)
         
         testWidget.exec()
+        
+        if sample_size.text()=='' and peak_location.text()=='' and gauss_width.text()=='' and bkg_counts.text()=='' and max_chan.text()=='' and min_chan.text()=='' and setSeed.text()=='':
+            return 
+        
 ####### Creates a defualt set of paramters to use if the user doesn't choose any
         if sample_size.text()=='':
             sample_size.setText('1000')
             
         if peak_location.text()=='':
-            peak_location.setText('100')
+            peak_location.setText('500')
             
         if gauss_width.text()=='':
-            gauss_width.setText('5')
+            gauss_width.setText('3')
             
         if bkg_counts.text()=='':
-            bkg_counts.setText('50')
+            bkg_counts.setText('10')
             
         if max_chan.text()=='':
-            max_chan.setText('200')
+            max_chan.setText('1000')
             
         if min_chan.text()=='':
             min_chan.setText('0')
