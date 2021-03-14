@@ -2357,22 +2357,7 @@ Running Bayesian MCMC...""")
    
                 bkg_width=int(round(bkg_width))
                 
-                #Having zero as the total width raises an error
-               
             
-                if tot_width==0:
-                    tot_width=1
-                    self.dataWidget.append(
-"""
-Detected no counts in the peak region, added 1 count to avoid raising error in the algorithm""")
-                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
-                if bkg_width==0:
-                    self.dataWidget.append(
-"""
-Detected no counts in the background region, added 1 count to avoid raising error in the algorithm""")
-                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
-          
-                    bkg_width=1
                 if sample_size.text()=="" or sample_size.text()==0:
                     samples=3000
                 else:
@@ -2435,9 +2420,11 @@ obsbkg ~ dpois(xb)
 
 
 # half-normal prior
-# for the sigmas, we choose observed total and background counts 
- s ~ dnorm(0.0, pow(tot_width, -2))T(0,)
- xb ~ dnorm(0.0, pow(bkg_width, -2))T(0,)
+# for the sigmas, we choose observed total and background counts (with 1 count added
+#to avoid issues with zero counts)
+
+ s ~ dnorm(0.0, pow(tot_width+1, -2))T(0,)
+ xb ~ dnorm(0.0, pow(bkg_width+1, -2))T(0,)
 
 
 
@@ -2601,8 +2588,8 @@ for ( i in 1 : length(obstot) ) {
 
 
   # half-normal prior
-  s[i] ~ dnorm(0.0, pow(tot_width, -2))T(0,)
-  xb[i] ~ dnorm(0.0, pow(bkg_width, -2))T(0,)
+  s[i] ~ dnorm(0.0, pow(tot_width+1, -2))T(0,)
+  xb[i] ~ dnorm(0.0, pow(bkg_width+1, -2))T(0,)
 }
 
 }', file={f <- tempfile()})  
@@ -2873,26 +2860,7 @@ return(centvec)
                 
                 chainplt.addLegend()
                 
-                if self.fileName=="testing":
-                    file=open("test_data_storage.dat")
-                    self.test_values=file.readlines()
-                    
-                    file.close
-                    true_count=self.test_values[0].strip().split()
-                    true_count=int(true_count[3])
-                  
-                    actual_count=self.test_values[-6].strip().split()
-                    actual_count=int(float(actual_count[3]))
-
-                    
-                    pen1=pg.mkPen("r",width=3)
-                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
-                    
-                    
-                    chainplt.plot(pen=pen1,name="True Mean" )
-                    chainplt.plot(pen=pen2,name="Actual Mean")
-                    chainplt.addLine(x=true_count,pen=pen1, name="True Mean")
-                    chainplt.addLine(x=actual_count,pen=pen2, name="Actual Mean")
+        
                     
                 t_s_chains=[]
                 g_s_chains=[]
@@ -2944,6 +2912,29 @@ return(centvec)
                     
                     #Plots the smoothed curve 
                     chainplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
+                    
+                    
+                if self.fileName=="testing":
+                    file=open("test_data_storage.dat")
+                    self.test_values=file.readlines()
+                    
+                    file.close
+                    true_count=self.test_values[0].strip().split()
+                    true_count=int(true_count[3])
+                  
+                    actual_count=self.test_values[-6].strip().split()
+                    actual_count=int(float(actual_count[3]))
+
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    
+                    chainplt.plot(pen=pen1,name="True Mean" )
+                    chainplt.plot(pen=pen2,name="Actual Mean")
+                    chainplt.addLine(x=true_count,pen=pen1, name="True Mean")
+                    chainplt.addLine(x=actual_count,pen=pen2, name="Actual Mean")
+                    
                 chainplt.setMouseEnabled(x=False,y=False)
                 
                 
@@ -3058,31 +3049,7 @@ return(centvec)
                 
                 centplt=pg.PlotWidget()
                 centplt.addLegend()
-                
-                if self.fileName=="testing":
-        
-                    true_centroid=self.test_values[2].strip().split()
-                    true_centroid=float(true_centroid[3])
-                    
-                    actual_centroid=self.test_values[-4].strip().split()
-                    actual_centroid=float(actual_centroid[2])
-                    
-                    
-                    pen1=pg.mkPen("r",width=3)
-                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
-                    
-                    true_centroid_line=centplt.plot(pen=pen1,name="True Centroid" )
-                    actual_centroid_line=centplt.plot(pen=pen2,name="Actual Centroid")
-                    
-                    centplt.addLine(x=true_centroid,pen=pen1, name="True Centroid")
-                    centplt.addLine(x=actual_centroid,pen=pen2, name="Actual Centroid")
-     
             
- 
-                    
-                    
-       
-
                 
                 for i in range(chain_num):
                     start=int(round(i*len(trace3)/chain_num))
@@ -3130,6 +3097,24 @@ return(centvec)
                     pen=pg.mkPen(color=colors[6-i],width=2)
                     centplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
                     
+                    
+                if self.fileName=="testing":
+        
+                    true_centroid=self.test_values[2].strip().split()
+                    true_centroid=float(true_centroid[3])
+                    
+                    actual_centroid=self.test_values[-4].strip().split()
+                    actual_centroid=float(actual_centroid[2])
+                    
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    true_centroid_line=centplt.plot(pen=pen1,name="True Centroid" )
+                    actual_centroid_line=centplt.plot(pen=pen2,name="Actual Centroid")
+                    
+                    centplt.addLine(x=true_centroid,pen=pen1, name="True Centroid")
+                    centplt.addLine(x=actual_centroid,pen=pen2, name="Actual Centroid")
                     
                 centplt.setMouseEnabled(x=False,y=False) 
                 self.tab4=centplt
@@ -3576,8 +3561,6 @@ centEst<-mean(xchann)
 slopeEst<-mean(obsbkg2)-mean(obsbkg1)/(mean(xchann2)-mean(xchann1))
 
 
-yIntEst<-obstot[0]
-
         
 
 ######################################################################                  
@@ -3651,7 +3634,7 @@ ourmodel <- jags.model(f, data = list(
               lastChan=lastChan
 							  ),
 
-               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst,e=yIntEst),
+               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst,e=0),
                n.chains = n.chains, n.adapt = n.adapt, quiet=TRUE)
   
 update(ourmodel, n.burn)
@@ -3719,9 +3702,10 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
    
                 ##Reduces the number of traces drawn for performance 
                 #enhancing reasons 
-                thin=int(len(trace[0])/2500)
+                thin=int(len(trace[0])/2000)
             
-                gaussThin=int(len(trace[0])/1000)
+            
+                gaussThin=int(len(trace[0])/800)
                
                 
             #When log scale is on, it takes tremendously longer to generate the 
@@ -3759,7 +3743,6 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y_vals=y+background
                     
                 
-              
                     pen=pg.mkPen(color="r",width=1.5)
                     
                     self.plt.plot(x_vals,y_vals,pen=pen,name="gaussFit")
@@ -3777,7 +3760,8 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                
                 
                 self.plt.plot(Spectrum.HistShift(regXRange),regYRange,pen=highlightPen,stepMode="center",name="regionHighlight")
-               
+              
+                self.plt.enableAutoRange(y=True )
                 
                
                 for i in range(chainNum):
@@ -3822,9 +3806,32 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Plots the smoothed curve 
                     signalPos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
+                
+                
+                if self.fileName=="testing":
+                    file=open("test_data_storage.dat")
+                    self.test_values=file.readlines()
+                    
+                    file.close
+                    true_count=self.test_values[0].strip().split()
+                    true_count=int(true_count[3])
+                  
+                    actual_count=self.test_values[-6].strip().split()
+                    actual_count=int(float(actual_count[3]))
+
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    
+                    signalPos.plot(pen=pen1,name="True Mean" )
+                    signalPos.plot(pen=pen2,name="Actual Mean")
+                    signalPos.addLine(x=true_count,pen=pen1, name="True Mean")
+                    signalPos.addLine(x=actual_count,pen=pen2, name="Actual Mean")
+                
                 self.signalPosTab=signalPos
                 signalPos.setMouseEnabled(x=False,y=False)
-                        
+                
                 self.tabs.addTab(self.signalPosTab,"Signal Count Posterior")
                      
                 
@@ -3945,6 +3952,24 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Plots the smoothed curve 
                     bPosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
+                if self.fileName=="testing":
+        
+                    true_centroid=self.test_values[2].strip().split()
+                    true_centroid=float(true_centroid[3])
+                    
+                    actual_centroid=self.test_values[-4].strip().split()
+                    actual_centroid=float(actual_centroid[2])
+                    
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    true_centroid_line=bPosPlt.plot(pen=pen1,name="True Centroid" )
+                    actual_centroid_line=bPosPlt.plot(pen=pen2,name="Actual Centroid")
+                    
+                    bPosPlt.addLine(x=true_centroid,pen=pen1, name="True Centroid")
+                    bPosPlt.addLine(x=actual_centroid,pen=pen2, name="Actual Centroid")
+                
                 self.bPosTab=bPosPlt
                         
                 self.tabs.addTab(self.bPosTab,"Gaussian Centroid Posterior")
@@ -3962,6 +3987,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
                     pen=pg.mkPen(color=color,width=2)
                     b_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
                 
                 self.bTraceTab=b_traces
                 self.tabs.addTab(self.bTraceTab,"Gaussian Centroid Traces")
