@@ -3758,8 +3758,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                
                 
                 self.plt.plot(Spectrum.HistShift(regXRange),regYRange,pen=highlightPen,stepMode="center",name="regionHighlight")
-              
-                self.plt.enableAutoRange(y=True )
+
                 
                
                 for i in range(chainNum):
