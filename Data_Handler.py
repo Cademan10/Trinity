@@ -3561,8 +3561,6 @@ centEst<-mean(xchann)
 slopeEst<-mean(obsbkg2)-mean(obsbkg1)/(mean(xchann2)-mean(xchann1))
 
 
-        
-
 ######################################################################                  
 # JAGS MODEL
 ######################################################################                 
@@ -3634,7 +3632,7 @@ ourmodel <- jags.model(f, data = list(
               lastChan=lastChan
 							  ),
 
-               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst,e=0),
+               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst, e=0),
                n.chains = n.chains, n.adapt = n.adapt, quiet=TRUE)
   
 update(ourmodel, n.burn)
@@ -4169,6 +4167,7 @@ Set parameters for test data.""")
         
         testWidget.exec()
         
+        #If no values are given, it shouldn't create the file 
         if sample_size.text()=='' and peak_location.text()=='' and gauss_width.text()=='' and bkg_counts.text()=='' and max_chan.text()=='' and min_chan.text()=='' and setSeed.text()=='':
             return 
         
@@ -4207,6 +4206,7 @@ Set parameters for test data.""")
             temp=self.channel_min
             self.channel_min=self.channel_max
             self.channel_max=temp
+        ##Adds channels in case the user sets the channel range to 0
         if self.channel_min==self.channel_max:
             self.channel_max+=10
         
