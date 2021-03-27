@@ -23,6 +23,7 @@ class Spectrum(QMainWindow):
         #Turns data into array
         b=np.transpose(data)
         self.x=b[0]
+        self.x=np.append(self.x,self.x[-1]+1)
         self.y=b[1]
         self.plt = pg.PlotWidget()
            
@@ -33,7 +34,7 @@ class Spectrum(QMainWindow):
         self.plt.setLabel("left","Counts per channel")
         self.plt.setLabel("bottom","Channel")
         self.plt.setMouseEnabled(x=False,y=False)
-        self.plot = self.plt.plot(self.x, self.y,pen=pen) 
+        self.plot = self.plt.plot(self.x, self.y,pen=pen, stepMode="center") 
         
       
 
@@ -211,11 +212,11 @@ class Spectrum(QMainWindow):
         #self.s2.setTickPosition(QSlider.TicksAbove)
         self.s2.setSingleStep(.0001)
         self.s2.setTickInterval(1)
-        self.s1.setPageStep(0)
+        self.s2.setPageStep(0)
         self.s2.sliderPressed.connect(self.sliderPressed)
         self.s2.sliderReleased.connect(self.sliderReleased)
         self.s2.valueChanged.connect(self.Move_X)
-        self.pressed=False
+        self.s2.setFocusPolicy(Qt.NoFocus)
         
         #Creates a tab widget
         self.tabs = QTabWidget()
@@ -280,6 +281,12 @@ class Spectrum(QMainWindow):
         self.cursor_label.setFixedHeight(15)
         self.plt.scene().sigMouseMoved.connect(self.mouseMoved)
         
+        self.count_label=QLabel("Channel=0")
+        self.count_label.setFixedWidth(150)
+        self.count_label.setFixedHeight(15)
+       
+        
+        
         self.energy_label=QLabel("Energy=NA")
         self.energy_label.setFixedWidth(150)
         self.energy_label.setFixedHeight(21)
@@ -290,6 +297,7 @@ class Spectrum(QMainWindow):
         
         channelLayout=QVBoxLayout(self.mainApp)
         channelLayout.addWidget(self.cursor_label)
+        #channelLayout.addWidget(self.count_label)
         channelLayout.addWidget(self.energy_label)
         
         self.grid.addLayout(channelLayout,0,1)
@@ -338,14 +346,14 @@ class Spectrum(QMainWindow):
         
      
     
-
+    def HistShift(x_vals):
+        return [x-0.5 for x in x_vals]
         
     def NewFile(self):
         
-        
-        #Refreshes the plot
-        Spectrum.Refresh(self)
-  
+
+          #Supressess a warning PyQtGraph issues when this function is called 
+        warnings.filterwarnings("ignore", message="Item already added to PlotItem, ignoring")
 
             
         #Uploads new file
@@ -360,24 +368,47 @@ class Spectrum(QMainWindow):
         if self.newfile=="":
             if len(self.previousfilenames)==0:
                 self.newfile=project_directory+"\default_data.txt"
+                
+            #If the user decides not to upload a new file, it will simply 
+            #return back to the original file with nothing changed 
             if len(self.previousfilenames)>0:
-                self.newfile=self.previousfilepaths[-1]
+                self.newfile=self.previousfilenames[-1]
+                return
             self.plt.setRange(xRange=[0,10],yRange=[0,10])
-            
+        
+        
+    
+        
         newBase=os.path.basename(self.newfile)
         newFileName=os.path.splitext((newBase))[0]
+        
+        ##Having spaces in filenames causes issues, this raises an error if
+        #it detects such a thing 
+        if len(newFileName.split())>1:
+            self.dataWidget.append("""
+Make sure file name contains no spaces""")
+        
+            self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+        
+            return 
+        
         self.previousfilenames.append(newFileName)
         
         self.previousfilepaths.append(self.newfile)
         
 
         f=open("used_file_storage.txt","a")
+        
+    
+        
         f.write(newFileName+"\t"+self.newfile+"\n")
         f.close()
             
         
         
         if self.newfile!="":
+            
+            Spectrum.Refresh(self)
             
             log=False
             if self.logScale.isChecked()==True:
@@ -393,11 +424,15 @@ class Spectrum(QMainWindow):
             #Histogram requires n+1 x-values for n y-values
             x=int(self.x[-1]+1)
             self.x=np.append(self.x,x)
+            
             self.y =newy
             self.stored_y=self.y
             pen=pg.mkPen(color='k',width=2)
-            self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
-
+        
+            
+            self.histX=Spectrum.HistShift(self.x)
+            self.plot.setData(self.histX, self.y,stepMode="center",pen=pen)
+            
             self.plt.addItem(self.plot)
             
             
@@ -409,8 +444,9 @@ class Spectrum(QMainWindow):
             
         #Automatically changes scale based on new data
             self.plt.enableAutoRange(x=True,y=True )
-            self.plt.enableAutoRange(x=False,y=False)
-   
+            self.plt.enableAutoRange(x=True,y=False)
+            
+           
       
 
         #Takes file name from new file
@@ -499,9 +535,7 @@ class Spectrum(QMainWindow):
         except:
             pass
             
-        if self.zoomAction.isChecked()==True:
-            self.s1.setValue(self.y_value)
-            self.s2.setValue(self.x_value)
+   
         if self.mcmcAction.isChecked()==True:
             self.plt.removeItem(self.reg1fill)
             self.plt.removeItem(self.reg2fill)
@@ -527,7 +561,7 @@ class Spectrum(QMainWindow):
             
             
             pen=pg.mkPen(color="k",width=2)
-            self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+            self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
             self.plt.addItem(self.plot)
             
 
@@ -553,8 +587,8 @@ Viewing window cleared""")
             mousePoint = self.plt.plotItem.vb.mapSceneToView(pos)
             if mousePoint.x()<self.x[0]:
                 x=self.x[0]
-            elif mousePoint.x()>self.x[-1]:
-                x=self.x[-1]
+            elif int(round(mousePoint.x()))>self.x[-1]-1:
+                x=self.x[-1]-1
             else:
                 x=mousePoint.x()
                 
@@ -569,6 +603,7 @@ Viewing window cleared""")
             self.posY=y
             
             self.cursor_label.setText("Channel=" +str(int(round(x))))
+            #self.count_label.setText("Counts="+str(int(self.y[int(round(x)-self.x[0])])))
             
             
             if len(self.energyCallibrationParamters)!=0:
@@ -601,7 +636,12 @@ Viewing window cleared""")
     def zoomCursor(self):
         if self.newfile!="":
             
+            ##Prevents user from using zoom feature if peak and or background 
+            #regions are highlighted 
             if self.peakSelect.isChecked()==True or self.backSelec.isChecked()==True:
+                self.dataWidget.append(
+"""
+Deselect peak/background highkight region(s) to zoom in""")
                 self.zoomAction.setChecked(False)
                 
 
@@ -622,7 +662,7 @@ Viewing window cleared""")
                 
                 
             
-            if self.peakCounter>1 or self.backCounter>1==True:
+            if self.peakCounter>1 or self.backCounter>1:
                 pass
 
             
@@ -647,6 +687,14 @@ Viewing window cleared""")
             
             
     def ZoomOut(self):
+        
+        if self.peakSelect.isChecked()==True or self.backSelec.isChecked()==True:
+                self.dataWidget.append(
+"""
+Deselect peak/background highkight region(s) to zoom out""")
+                return 
+        
+        
         self.incrementZoomRegStorage.clear()
         self.zoomRegStorage.clear()
         if self.logScale.isChecked()==True:
@@ -759,12 +807,12 @@ Expanded to full view""")
                     
                     
                     self.start=10000*((self.minx-self.x[0])/(self.x_avg))/m
-                    
+           
                     self.increment=(m*self.x_avg)/10000
                          
                
                     self.s2.setValue(int(round(self.start)))
-                
+                    
                 
                     self.zoomRegStorage.append([self.minx,self.maxx,self.Ymax,self.Ymax])
                     
@@ -894,7 +942,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
         self.grid.addWidget(self.s2,2,1,1,2)
         self.s2.setHidden(False)
         self.s2.setValue(int(round(self.start)))
-        
+    
         
         
         self.plt.setRange(xRange=[midChan-reducedChanRangePerSide,midChan+reducedChanRangePerSide])
@@ -991,27 +1039,20 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
      
     def Move_X(self, value):
         
-        #The slider can move without actually using the slider tab
-        #This prevents that from happening 
-        if self.pressed==False:
-            try:
-                
-                self.s2.setValue(int(round(self.endSlideVal)))
-            except:
-                self.s2.setValue(int(round(self.start)))
-        else:
+  
         
-            self.xvar=(value-self.start)*self.increment
+      self.xvar=(value-self.start)*self.increment
         
-            self.plt.setRange(xRange=[self.minx+self.xvar,self.maxx+self.xvar])
-        
+      self.plt.setRange(xRange=[self.minx+self.xvar,self.maxx+self.xvar])
+      
+      if self.minx+self.xvar<self.x[0]:
+            self.plt.setRange(xRange=[self.x[0],self.maxx+self.xvar])
+      if self.maxx+self.xvar>self.x[-1]:
+            self.plt.setRange(xRange=[self.minx+self.xvar,self.x[-1]])
      
         
            
-            if self.minx+self.xvar<self.x[0]:
-                self.plt.setRange(xRange=[self.x[0],self.maxx+self.xvar])
-            if self.maxx+self.xvar>self.x[-1]:
-                self.plt.setRange(xRange=[self.minx+self.xvar,self.x[-1]])
+        
      
         
          
@@ -1167,7 +1208,7 @@ Converted to Log Scale""")
   
             for i in range(len(self.y)):
                 if self.y[i]<=0:
-                    logy.append(1)
+                    logy.append(.1)
                 else:
                     logy.append(self.y[i])
                     
@@ -1175,7 +1216,8 @@ Converted to Log Scale""")
             pen=pg.mkPen(color='k',width=2)
          
             if self.newfile!="":
-                self.plot.setData(logx, logy,pen=pen,stepMode=True)
+                
+                self.plot.setData(Spectrum.HistShift(logx), logy,pen=pen,stepMode="center")
                 self.plt.setLogMode(False,True) 
             
             if len(self.incrementZoomRegStorage)>=1:
@@ -1208,7 +1250,7 @@ Converted to Log Scale""")
                 y=[]
                 for i in range(len(self.peaky)):
                     if self.peaky[i]<=0:
-                        y.append(1)
+                        y.append(.1)
                     else:
                         y.append(np.log10(self.peaky[i]))
                 
@@ -1220,7 +1262,7 @@ Converted to Log Scale""")
                 pen=pg.mkPen(color="k",width=2)
                 brush=pg.mkBrush(color=color)
 
-                self.totalfill.setData(x,y,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 self.plt.addItem(self.totalfill)
                 
                 
@@ -1230,13 +1272,13 @@ Converted to Log Scale""")
                     y2=[]
                     for i in range(len(self.reg1yrange)):
                         if self.reg1yrange[i]<=0:
-                            y1.append(1)
+                            y1.append(.1)
                         else:
                             y1.append(np.log10(self.reg1yrange[i]))
                             
                     for i in range(len(self.reg2yrange)):
                         if self.reg2yrange[i]<=0:
-                            y2.append(1)
+                            y2.append(.1)
                         else:
                             y2.append(np.log10(self.reg2yrange[i]))
                     
@@ -1254,9 +1296,9 @@ Converted to Log Scale""")
                     pen=pg.mkPen(color="k",width=2)
     
                     brush=pg.mkBrush(color=color)
-                    self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                     
-                    self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
         
         if self.logScale.isChecked()==False:
             self.dataWidget.append(
@@ -1265,7 +1307,7 @@ Converted to Linear Scale""")
             self.dataWidget.moveCursor(QtGui.QTextCursor.End)
             pen=pg.mkPen(color='k',width=2)
             if self.newfile!="":
-                self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                 self.plt.setLogMode(False,False)
                 
                 self.plt.setRange(yRange=[min(self.y),max(self.y)])
@@ -1296,7 +1338,7 @@ Converted to Linear Scale""")
                 brush=pg.mkBrush(color=color)
                 x=self.peakx
                 x=np.append(x,x[-1]+1)
-                self.totalfill.setData(x,self.peaky,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),self.peaky,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 self.plt.addItem(self.totalfill)
                 
                 
@@ -1317,9 +1359,9 @@ Converted to Linear Scale""")
                     pen=pg.mkPen(color="k",width=2)
     
                     brush=pg.mkBrush(color=color)
-                    self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
 
-                    self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 
      
                 
@@ -1374,7 +1416,7 @@ Converted to Linear Scale""")
               
                     pen=pg.mkPen(color="k",width=2)
                     self.plt.clear()
-                    self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                    self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                     self.plt.addItem(self.plot)
                     
             
@@ -1566,7 +1608,7 @@ Upload file first""")
                 
                 
                 self.plt.clear()
-                self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                 self.plt.addItem(self.plot)
               
                 
@@ -1746,9 +1788,10 @@ Select Peak first""")
                     x1=np.append(x1,x1[-1]+1)
                     if len(x1)==len(y1):
                         x1=np.append(x1,x1[-1]+1)
+                       
         
                     
-                    self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                    self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                     
                     
                     x2=self.x2range 
@@ -1759,7 +1802,8 @@ Select Peak first""")
                     self.reg2fill=pg.PlotCurveItem(name="reg2fill")
                    
                     x2=np.append(x2,x2[-1]+1)
-                    self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                   
+                    self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                     
                     #Creates a line connecting the points created above
                     self.regplot=pg.PlotDataItem(self.backgroundx,self.backgroundy,pen=linepen,name="self.regplot")                    
@@ -1777,10 +1821,14 @@ Select Peak first""")
     def Sum(self,PeakSelect):
         if self.sumAction.isChecked()==True:
             
-            
+            if self.peakSelect.isChecked()==False:
+                self.dataWidget.append(
+"""
+Select peak first!""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+                self.sumAction.setChecked(False)
     
-            self.mcmcAction.setEnabled(False)
-            self.gaussFitAction.setEnabled(False)
+            
 
            
             
@@ -1792,21 +1840,19 @@ Select Peak first""")
                 self.gaussFitAction.setChecked(False)
                 self.sumAction.setChecked(False)
             
-            if self.peakSelect.isChecked()==False:
-                self.dataWidget.append(
-"""
-Select peak first!""")
-                self.dataWidget.moveCursor(QtGui.QTextCursor.End)
-                self.sumAction.setChecked(False)
+        
             
             
             if self.peakSelect.isChecked()==True:
+                self.mcmcAction.setEnabled(False)
+                self.gaussFitAction.setEnabled(False)
                 self.backUsed=0
                 self.plt.removeItem(self.peakReg)
                 
                 
                 #X and Y assigned the values within the selected peak
                 x=self.peakx
+
                 y=self.peaky
                 
                 color=pg.mkColor(0,255,255,50)
@@ -1819,7 +1865,7 @@ Select peak first!""")
                 x=np.append(x,x[-1]+1)
                 if self.logScale.isChecked()==True:
                     y=np.log10(y)
-                self.totalfill.setData(x,y,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 
                 self.plt.addItem(self.totalfill)
                 
@@ -1862,12 +1908,13 @@ Select peak first!""")
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
                         
+                        
                         y=self.reg1yrange
                         y1=[]
                         
                         for i in range(len(y)):
                             if y[i]==0:
-                                y1.append(1)
+                                y1.append(.1)
                             else:
                                 y1.append(y[i])
                         y1=np.log10(y1)     
@@ -1876,11 +1923,12 @@ Select peak first!""")
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+                        
                         y=self.reg2yrange
                         y2=[]
                         for i in range(len(y)):
                             if y[i]==0:
-                                y2.append(1)
+                                y2.append(.1)
                             else:
                                 y2.append(y[i])
                         y2=np.log10(y2)
@@ -1888,8 +1936,8 @@ Select peak first!""")
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                      
                         
                         
@@ -1897,19 +1945,21 @@ Select peak first!""")
                         color=pg.intColor(0, alpha=50)
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
+                
                         y1=self.reg1yrange
                         
                         while len(x1)<=len(y1):
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+            
                         y2=self.reg2yrange
                         
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                         
                     self.plt.addItem(self.reg1fill)
                     self.plt.addItem(self.reg2fill)
@@ -2052,29 +2102,19 @@ Centroid= """+str(self.x_mean)+" +/- " + str(self.standerr))
 
             
     def RadioButtonClick(self):
-        if self.b1.isChecked()==True:
-            self.tnProb=True
+        if self.tnProb.isChecked()==True:
             
             self.prob_x1.setEnabled(True)
             self.prob_x2.setEnabled(True)
+        
             
-        if self.b1.isChecked()==False:
-            self.tnProb=False
-            self.b1.setChecked(False)
-            
-
-            
-        if self.b2.isChecked()==True:
-            self.gProb=True
+        if self.gProb.isChecked()==True:
             
             self.prob_x1.setEnabled(True)
             self.prob_x2.setEnabled(True)
+        
             
-        if self.b2.isChecked()==False:
-            self.gProb=False
-            self.b2.setChecked(False)
-            
-        if self.tnProb==False and self.gProb==False:
+        if self.tnProb.isChecked()==False and self.gProb.isChecked()==False:
             self.prob_x1.setEnabled(False)
             self.prob_x2.setEnabled(False)
          
@@ -2089,6 +2129,7 @@ Centroid= """+str(self.x_mean)+" +/- " + str(self.standerr))
                 self.dataWidget.append(
 """
 Select peak and background first!""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 self.mcmcAction.setChecked(False)
                 
             if self.backSelec.isChecked()==True:
@@ -2105,10 +2146,7 @@ Select peak and background first!""")
                 self.prob_x1 = QLineEdit(paraWidget)
                 self.prob_x2=QLineEdit(paraWidget)
                 empty_string=QLabel(paraWidget)
-                
-                
-                self.tnProb=False
-                self.gProb=False
+
                 
                 self.prob_x1.setEnabled(False)
                 self.prob_x2.setEnabled(False)
@@ -2118,16 +2156,15 @@ Select peak and background first!""")
                 self.buttonGroup = QtGui.QButtonGroup()
                 
                 
-                self.b1=QRadioButton("")
-                self.b2=QRadioButton("")
+                self.tnProb=QCheckBox("")
+                self.gProb=QCheckBox("")
+            
                 
-                
-                self.buttonGroup.addButton(self.b1)
-                self.buttonGroup.addButton(self.b2)
-                
-                self.buttonGroup.setExclusive(False)
-                self.b1.toggled.connect(self.RadioButtonClick)
-                self.b2.toggled.connect(self.RadioButtonClick)
+                self.buttonGroup.addButton(self.tnProb)
+                self.buttonGroup.addButton(self.gProb)
+                self.buttonGroup.setExclusive(False)  
+                self.tnProb.toggled.connect(self.RadioButtonClick)
+                self.gProb.toggled.connect(self.RadioButtonClick)
                 
   
 
@@ -2141,8 +2178,8 @@ Select peak and background first!""")
                 layout.addRow("Calculate Probability of Signal Between:",title)
                 layout.addRow("Value 1 ", self.prob_x1)
                 layout.addRow("Value 2 ",self.prob_x2)
-                layout.addRow("Trunc. Norm.",self.b1)
-                layout.addRow("Gamma",self.b2)
+                layout.addRow("Trunc. Norm.",self.tnProb)
+                layout.addRow("Gamma",self.gProb)
                 
     
                 layout.addWidget(buttonBox)
@@ -2150,9 +2187,25 @@ Select peak and background first!""")
                 paraWidget.exec()
     
                 
+                ##if no input is added into the window, the algorithm will not run
                 
+                if sample_size.text()=="" and burnin.text()=="" and chain_numbers.text()=="":
+                    self.mcmcAction.setChecked(False)
+                    self.gaussFitAction.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+                    self.dataWidget.append(
+"""
+No parameters selected""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+                    return
+                
+                self.dataWidget.append(
+"""
+Running Bayesian MCMC...""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 #Creates a fillable region
                 x=self.peakx
+          
                 y=self.peaky
                 color=pg.mkColor(0,255,255,50)
                 pen=pg.mkPen(color="k",width=2)
@@ -2164,7 +2217,7 @@ Select peak and background first!""")
                     x=np.append(x,x[-1]+1)
                 if self.logScale.isChecked()==True:
                     y=np.log10(y)
-                self.totalfill.setData(x,y,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                    
         
                 
@@ -2172,12 +2225,13 @@ Select peak and background first!""")
                         color=pg.intColor(0, alpha=50)
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
+                    
                         
                         y=self.reg1yrange
                         y1=[]
                         for i in range(len(y)):
                             if y[i]==0:
-                                y1.append(1)
+                                y1.append(.1)
                             else:
                                 y1.append(y[i])
                         y1=np.log10(y1)     
@@ -2186,11 +2240,12 @@ Select peak and background first!""")
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+                       
                         y=self.reg2yrange
                         y2=[]
                         for i in range(len(y)):
                             if y[i]==0:
-                                y2.append(1)
+                                y2.append(.1)
                             else:
                                 y2.append(y[i])
                         y2=np.log10(y2)
@@ -2198,24 +2253,26 @@ Select peak and background first!""")
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                 
                 if self.logScale.isChecked()==False:
                         color=pg.intColor(0, alpha=50)
                         brush=pg.mkBrush(color=color)
                         x1=self.x1range
+                       
                         y1=self.reg1yrange
                         while len(x1)<=len(y1):
                             x1=np.append(x1,x1[-1]+1)
                         
                         x2=self.x2range
+                     
                         y2=self.reg2yrange
                         while len(x2)<=len(y2):
                             x2=np.append(x2,x2[-1]+1)
                         
-                        self.reg1fill.setData(x1,y1,pen=pen,fillLevel=0,brush=brush,stepMode=True)
-                        self.reg2fill.setData(x2,y2,pen=pen,fillLevel=0,brush=brush,stepMode=True)
+                        self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
+                        self.reg2fill.setData(Spectrum.HistShift(x2),y2,pen=pen,fillLevel=0,brush=brush,stepMode="center")
                         
                 #Gets the first and last channel of the selected region
                 firstchannel=int(round(self.peakx[0]))
@@ -2299,8 +2356,8 @@ Select peak and background first!""")
                 tot_width=int(round(sum(obs_tot)))
    
                 bkg_width=int(round(bkg_width))
-                if bkg_width==0:
-                    bkg_width=1
+                
+            
                 if sample_size.text()=="" or sample_size.text()==0:
                     samples=3000
                 else:
@@ -2327,11 +2384,6 @@ Select peak and background first!""")
                 peakCounts=self.peaky
                 backCounts=obs_bkg
         
-         
-                self.dataWidget.append(
-"""
-Running Bayesian MCMC...""")
-                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 
                 
                 #I accidentally wrote all of the preceeding code with an extra 
@@ -2368,9 +2420,11 @@ obsbkg ~ dpois(xb)
 
 
 # half-normal prior
-# for the sigmas, we choose observed total and background counts 
- s ~ dnorm(0.0, pow(tot_width, -2))T(0,)
- xb ~ dnorm(0.0, pow(bkg_width, -2))T(0,)
+# for the sigmas, we choose observed total and background counts (with 1 count added
+#to avoid issues with zero counts)
+
+ s ~ dnorm(0.0, pow(tot_width+1, -2))T(0,)
+ xb ~ dnorm(0.0, pow(bkg_width+1, -2))T(0,)
 
 
 
@@ -2400,7 +2454,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       's', 'xb'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter)
 
 # <---- rjags
 ######################################################################
@@ -2485,7 +2539,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       'a','bkg'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter)
 samplesmat = as.matrix(mcmcChain)
 HDI68 <- hdi(samplesmat[,1], credMass = 0.68)
 HDI95 <-hdi(samplesmat[,1], credMass = 0.95)
@@ -2534,8 +2588,8 @@ for ( i in 1 : length(obstot) ) {
 
 
   # half-normal prior
-  s[i] ~ dnorm(0.0, pow(tot_width, -2))T(0,)
-  xb[i] ~ dnorm(0.0, pow(bkg_width, -2))T(0,)
+  s[i] ~ dnorm(0.0, pow(tot_width+1, -2))T(0,)
+  xb[i] ~ dnorm(0.0, pow(bkg_width+1, -2))T(0,)
 }
 
 }', file={f <- tempfile()})  
@@ -2567,7 +2621,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       's', 'xb'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter, thin)
 
 
 centvec <- vector()
@@ -2654,7 +2708,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       's', 'xb'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter, thin)
 
 
 centvec <- vector()
@@ -2723,8 +2777,9 @@ return(centvec)
                     trace=np.array(trace)
                 
                 
-                    thin=int(len(trace[0])/1000)
-                    
+                    thin=int(len(trace[0])/2000)
+                    if thin==0:
+                        thin=1
                     
                     
     #Arrays that store  the data from each step of the algorthm
@@ -2802,27 +2857,11 @@ return(centvec)
                         colors.append(colors[i-6])
                 
                 chainplt=pg.PlotWidget()
+                
                 chainplt.addLegend()
                 
-                if self.fileName=="testing":
-                    file=open("test_data_storage.dat")
-                    self.test_values=file.readlines()
-                    file.close
-                    true_count=self.test_values[0].strip().split()
-                    true_count=int(true_count[3])
+        
                     
-                    actual_count=self.test_values[-6].strip().split()
-                    actual_count=int(float(actual_count[3]))
-
-                    
-                    pen1=pg.mkPen("r",width=3)
-                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
-                    true_mean_line=chainplt.plot(x=true_count,pen=pen1,name="True Mean")
-                    actual_mean_line=chainplt.plot(x=actual_count,pen=pen2,name="Actual Mean")
-                    chainplt.addLine(x=true_count,pen=pen1)
-                    chainplt.addLine(x=actual_count,pen=pen2)
-                    
-                
                 t_s_chains=[]
                 g_s_chains=[]
                 
@@ -2873,6 +2912,29 @@ return(centvec)
                     
                     #Plots the smoothed curve 
                     chainplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
+                    
+                    
+                if self.fileName=="testing":
+                    file=open("test_data_storage.dat")
+                    self.test_values=file.readlines()
+                    
+                    file.close
+                    true_count=self.test_values[0].strip().split()
+                    true_count=int(true_count[3])
+                  
+                    actual_count=self.test_values[-6].strip().split()
+                    actual_count=int(float(actual_count[3]))
+
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    
+                    chainplt.plot(pen=pen1,name="True Mean" )
+                    chainplt.plot(pen=pen2,name="Actual Mean")
+                    chainplt.addLine(x=true_count,pen=pen1, name="True Mean")
+                    chainplt.addLine(x=actual_count,pen=pen2, name="Actual Mean")
+                    
                 chainplt.setMouseEnabled(x=False,y=False)
                 
                 
@@ -2987,30 +3049,7 @@ return(centvec)
                 
                 centplt=pg.PlotWidget()
                 centplt.addLegend()
-                
-                if self.fileName=="testing":
-        
-                    true_centroid=self.test_values[2].strip().split()
-                    true_centroid=float(true_centroid[3])
-                    
-                    actual_centroid=self.test_values[-4].strip().split()
-                    actual_centroid=float(actual_centroid[2])
-                    
-                    
-                    pen1=pg.mkPen("r",width=3)
-                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
-                    
-                    true_centroid_line=centplt.plot(x=true_centroid,y=None,pen=pen1,name="True Centroid" )
-                    actual_centroid_line=centplt.plot(x=actual_centroid,y=None,pen=pen2,name="Actual Centroid")
-                    centplt.addLine(x=true_centroid,y=None,pen=pen1)
-                    centplt.addLine(x=actual_centroid,y=None,pen=pen2)
-     
             
- 
-                    
-                    
-       
-
                 
                 for i in range(chain_num):
                     start=int(round(i*len(trace3)/chain_num))
@@ -3058,6 +3097,24 @@ return(centvec)
                     pen=pg.mkPen(color=colors[6-i],width=2)
                     centplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
                     
+                    
+                if self.fileName=="testing":
+        
+                    true_centroid=self.test_values[2].strip().split()
+                    true_centroid=float(true_centroid[3])
+                    
+                    actual_centroid=self.test_values[-4].strip().split()
+                    actual_centroid=float(actual_centroid[2])
+                    
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    true_centroid_line=centplt.plot(pen=pen1,name="True Centroid" )
+                    actual_centroid_line=centplt.plot(pen=pen2,name="Actual Centroid")
+                    
+                    centplt.addLine(x=true_centroid,pen=pen1, name="True Centroid")
+                    centplt.addLine(x=actual_centroid,pen=pen2, name="Actual Centroid")
                     
                 centplt.setMouseEnabled(x=False,y=False) 
                 self.tab4=centplt
@@ -3199,8 +3256,7 @@ Signal Counts Percentiles: """+
                 
                 ######Runs the probability function below 
                 
-                if self.tnProb==True:
-                    self.tnProb=False
+                if self.tnProb.isChecked()==True:
                     try:
                         minChan=int(self.prob_x1.text())
                         maxChan=int(self.prob_x2.text())
@@ -3209,18 +3265,21 @@ Signal Counts Percentiles: """+
                     except:
                         self.dataWidget.append("Invalid channel region chosen for probability calculation")
                         self.dataWidget.moveCursor(QtGui.QTextCursor.End)
-                if self.gProb==True:
-                    self.gProb=False
+                if self.gProb.isChecked()==True:
                     try:
+                        
                         minChan=int(self.prob_x1.text())
+                        
                         maxChan=int(self.prob_x2.text())
+                       
                         data=self.g_s
-                        Spectrum.Prob(self,[minChan,maxChan],data,"Gamma")
+                        
+                 
                     except:
-                        self.dataWidget.append("Invalid channel region chosen for probability calculatio")
+                        self.dataWidget.append("Invalid channel region chosen for probability calculation")
                         self.dataWidget.moveCursor(QtGui.QTextCursor.End)
                         
-    
+                    Spectrum.Prob(self,[minChan,maxChan],data,"Gamma")
                         
                         
                         
@@ -3274,26 +3333,49 @@ Signal Counts Percentiles: """+
         vals2=data
         
         prob1=np.percentile(vals1,[per1])
+   
         while prob1<x1:
+   
             per1+=.05
+            
+            ##If the guess signal count is greater than the 99.95 percentile, then it will
+            ##report it as being in the 100 percentile  
+            if per1>100:
+                per1=100
+                break
             prob1=np.percentile(vals1,[per1])
+        
         
         if per1==0:
             probability1=0
+            
+
+    
+            
         elif abs(np.percentile(vals1,[per1-.05])-x1)>abs(x1-prob1):
             probability1=round(per1,2)
+            
+        #If the previous percentile value is closer to the desired channel, 
+        #it uses that value instead
         else:
             probability1=round(per1-.05,2)
                     
                     
         per2=0
         prob2=np.percentile(vals2,[per2])
+
         while prob2<x2:
             per2+=.05
+            
+            if per2>100:
+                per2=100
+                break
             prob2=np.percentile(vals2,[per2])
         
         if per2==0:
             probability2=0
+        
+            
         elif abs(np.percentile(vals2,[per2-.05])-x2)>abs(x2-prob2):
             probability2=round(per2,2)
         else:
@@ -3302,10 +3384,10 @@ Signal Counts Percentiles: """+
         probability=round(abs(probability2-probability1),2)
            
         summationType=summationType
-               
-        self.dataWidget.append("""
-
-Probability of the signal being between """+str(x1)+" and "+str(x2)+ " counts is "+str(probability)+"% ("+str(summationType)+")")
+    
+        self.dataWidget.append(
+"""
+Probability of the signal count being between """+str(x1)+" and "+str(x2)+ " counts is "+str(probability)+"% ("+str(summationType)+")")
                 
 
         self.dataWidget.moveCursor(QtGui.QTextCursor.End)    
@@ -3389,6 +3471,16 @@ Select peak and background first!""")
     
                 self.fitWidget.exec()
                 
+                if sampleSize.text()=="" and burn.text()=="" and chains.text()=="":
+                    self.gaussFitAction.setChecked(False)
+                    self.mcmcAction.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+                    self.dataWidget.append(
+"""
+No parameters selected""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+                    return    
+            
                 if sampleSize.text()=="":
                     samples=2000
                 if sampleSize.text()!="":
@@ -3406,11 +3498,11 @@ Select peak and background first!""")
                 max_chan=max(self.peakx)
 
                 peakXRange=self.peakx
-                peakCounts=np.array([count if count>0 else 1 for count in self.peaky])
+                peakCounts=self.peaky
                 back1Chans=self.x1range
-                back1Counts=np.array([count if count>0 else 1 for count in self.reg1yrange])
+                back1Counts=self.reg1yrange
                 back2Chans=self.x2range
-                back2Counts=np.array([count if count>0 else 1 for count in self.reg2yrange])
+                back2Counts=self.reg2yrange
                 firstChan=self.peakx[0]
                 lastChan=self.peakx[-1]
                 if self.sigmaS==True:
@@ -3468,10 +3560,6 @@ heightEst<-median(obstot)
 centEst<-mean(xchann)
 slopeEst<-mean(obsbkg2)-mean(obsbkg1)/(mean(xchann2)-mean(xchann1))
 
-
-yIntEst<-obstot[0]
-
-        
 
 ######################################################################                  
 # JAGS MODEL
@@ -3544,7 +3632,7 @@ ourmodel <- jags.model(f, data = list(
               lastChan=lastChan
 							  ),
 
-               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst,e=yIntEst),
+               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst, e=0),
                n.chains = n.chains, n.adapt = n.adapt, quiet=TRUE)
   
 update(ourmodel, n.burn)
@@ -3554,7 +3642,7 @@ mcmcChain <- coda.samples(ourmodel,
 			  variable.names=c(
 			       'a', 'b', 'c', 'd','e'
 			                  ),
-                   n.iter=n.iter, thin=thin)
+                   n.iter=n.iter, thin)
 samplesmat = as.matrix(mcmcChain)
 
 return(samplesmat)
@@ -3610,8 +3698,13 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                 
                 self.dataWidget.moveCursor(QtGui.QTextCursor.End)                       
    
-                thin=int(len(trace[0])/1000)
+                ##Reduces the number of traces drawn for performance 
+                #enhancing reasons 
+                thin=int(len(trace[0])/2000)
             
+            
+                gaussThin=int(len(trace[0])/800)
+               
                 
             #When log scale is on, it takes tremendously longer to generate the 
             #Gaussian plots for some reason
@@ -3622,8 +3715,9 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                 
                 if thin==0:
                     thin=1
-                
-                for i in range(0,len(trace[0]),thin):
+                if gaussThin==0:
+                    gaussThin=1
+                for i in range(0,len(trace[0]),gaussThin):
                     height=trace[0][i]
                     cent=trace[1][i]
   
@@ -3631,7 +3725,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
       
 
                     width=float(trace[2][i])
-                    x_vals = np.linspace(int(self.x1range[0]), int(self.x2range[-1])+1, int(self.x2range[-1]-self.x1range[0]))
+                    x_vals = np.linspace(int(self.x1range[0]), int(self.x2range[-1]), int(self.x2range[-1]-self.x1range[0]))
             
                     y_vals=[]
                     
@@ -3647,7 +3741,6 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y_vals=y+background
                     
                 
-              
                     pen=pg.mkPen(color="r",width=1.5)
                     
                     self.plt.plot(x_vals,y_vals,pen=pen,name="gaussFit")
@@ -3656,15 +3749,16 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
           
                
                 regXRange=list(range(int(round(self.x1range[0])),int(round(self.x2range[-1]))+1))
+            
                 regYRange=self.y[int(regXRange[0]-self.x[0]):int(regXRange[-1]-self.x[0])+1]
                
                 regXRange.append(regXRange[-1]+1)
                 regXRange=np.array(regXRange)
                 highlightPen=pg.mkPen(color="b",width=2,alpha=100)
                
-               
-                self.plt.plot(regXRange,regYRange,pen=highlightPen,stepMode=True,name="regionHighlight")
-               
+                
+                self.plt.plot(Spectrum.HistShift(regXRange),regYRange,pen=highlightPen,stepMode="center",name="regionHighlight")
+
                 
                
                 for i in range(chainNum):
@@ -3709,9 +3803,32 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Plots the smoothed curve 
                     signalPos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
+                
+                
+                if self.fileName=="testing":
+                    file=open("test_data_storage.dat")
+                    self.test_values=file.readlines()
+                    
+                    file.close
+                    true_count=self.test_values[0].strip().split()
+                    true_count=int(true_count[3])
+                  
+                    actual_count=self.test_values[-6].strip().split()
+                    actual_count=int(float(actual_count[3]))
+
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    
+                    signalPos.plot(pen=pen1,name="True Mean" )
+                    signalPos.plot(pen=pen2,name="Actual Mean")
+                    signalPos.addLine(x=true_count,pen=pen1, name="True Mean")
+                    signalPos.addLine(x=actual_count,pen=pen2, name="Actual Mean")
+                
                 self.signalPosTab=signalPos
                 signalPos.setMouseEnabled(x=False,y=False)
-                        
+                
                 self.tabs.addTab(self.signalPosTab,"Signal Count Posterior")
                      
                 
@@ -3832,6 +3949,24 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Plots the smoothed curve 
                     bPosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
+                if self.fileName=="testing":
+        
+                    true_centroid=self.test_values[2].strip().split()
+                    true_centroid=float(true_centroid[3])
+                    
+                    actual_centroid=self.test_values[-4].strip().split()
+                    actual_centroid=float(actual_centroid[2])
+                    
+                    
+                    pen1=pg.mkPen("r",width=3)
+                    pen2=pg.mkPen("r",width=3,style=QtCore.Qt.DashLine)
+                    
+                    true_centroid_line=bPosPlt.plot(pen=pen1,name="True Centroid" )
+                    actual_centroid_line=bPosPlt.plot(pen=pen2,name="Actual Centroid")
+                    
+                    bPosPlt.addLine(x=true_centroid,pen=pen1, name="True Centroid")
+                    bPosPlt.addLine(x=actual_centroid,pen=pen2, name="Actual Centroid")
+                
                 self.bPosTab=bPosPlt
                         
                 self.tabs.addTab(self.bPosTab,"Gaussian Centroid Posterior")
@@ -3849,6 +3984,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
                     pen=pg.mkPen(color=color,width=2)
                     b_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
                 
                 self.bTraceTab=b_traces
                 self.tabs.addTab(self.bTraceTab,"Gaussian Centroid Traces")
@@ -3946,7 +4082,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     
                     pen=pg.mkPen(color="k",width=2)
                     self.plt.clear()
-                    self.plot.setData(self.x, self.y,pen=pen,stepMode=True)
+                    self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                     self.plt.addItem(self.plot)
                     
                     self.peakReg.setRegion((self.xmin,self.xmax))
@@ -4025,39 +4161,30 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
         buttonBox.accepted.connect(testWidget.accept)
         self.dataWidget.append(
 """
-Set parameters for test data. The default paramters used are: """ + 
-        """
-Sample Size= 1000"""+
-        """
-Peak Location= Channel 100"""+
-        """
-Width of Peak= 5"""+
-        """
-Background Counts Per Channel= 50"""+
-       """
-Maximum Channel= 200"""+
-       """
-Minimum Chanel= 0"""+
-"""
-Seed= 0""")
+Set parameters for test data.""")
         self.dataWidget.moveCursor(QtGui.QTextCursor.End)
         
         testWidget.exec()
+        
+        #If no values are given, it shouldn't create the file 
+        if sample_size.text()=='' and peak_location.text()=='' and gauss_width.text()=='' and bkg_counts.text()=='' and max_chan.text()=='' and min_chan.text()=='' and setSeed.text()=='':
+            return 
+        
 ####### Creates a defualt set of paramters to use if the user doesn't choose any
         if sample_size.text()=='':
             sample_size.setText('1000')
             
         if peak_location.text()=='':
-            peak_location.setText('100')
+            peak_location.setText('500')
             
         if gauss_width.text()=='':
-            gauss_width.setText('5')
+            gauss_width.setText('3')
             
         if bkg_counts.text()=='':
-            bkg_counts.setText('50')
+            bkg_counts.setText('10')
             
         if max_chan.text()=='':
-            max_chan.setText('200')
+            max_chan.setText('1000')
             
         if min_chan.text()=='':
             min_chan.setText('0')
@@ -4078,6 +4205,7 @@ Seed= 0""")
             temp=self.channel_min
             self.channel_min=self.channel_max
             self.channel_max=temp
+        ##Adds channels in case the user sets the channel range to 0
         if self.channel_min==self.channel_max:
             self.channel_max+=10
         
