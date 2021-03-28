@@ -100,7 +100,7 @@ class Spectrum(QMainWindow):
         self.perZoomOutAction=QAction(QIcon(icondir+"DownIcon.png"),"Zoom out 15%",self)
         self.perZoomOutAction.triggered.connect(self.PercentZoomOut)
         
-        self.setYRange = QAction("Set Y Range Maunually",self)
+        self.setYRange = QAction(QIcon(icondir+"manualYRangeIcon"), "Set Y Range Manually",self)
         self.setYRange.triggered.connect(self.SetYRange)
         
         #Full y scale option for toolbar
@@ -193,7 +193,7 @@ class Spectrum(QMainWindow):
         self.dataWidget.setReadOnly(True)
 
         #self.dataWidget.setMaximumWidth(1200)
-        self.dataWidget.setText("Welcome!")
+        self.dataWidget.setText("Welcome to Trinity!")
         
         #Creates sliders used for moving the graph vertically
         self.s1 = QSlider(Qt.Vertical)
@@ -411,6 +411,8 @@ Make sure file name contains no spaces""")
         if self.newfile!="":
             
             Spectrum.Refresh(self)
+            
+            self.manualYRange.clear()
             
             log=False
             if self.logScale.isChecked()==True:
@@ -1169,7 +1171,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             
             if self.manualYRangeCount==0:
                     self.yRangeReg=pg.LinearRegionItem(values=(self.posY,self.posY),movable=False,  orientation='horizontal')
-                    color=pg.mkColor(0,100,0,70)
+                    color=pg.mkColor(0,255,0,70)
                     brush=pg.mkBrush(color=color)
 
                     self.yRangeReg.setBrush(brush)
@@ -1243,7 +1245,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             else:
                 min_y=0
                 
-            self.plt.setRange(yRange=[min_y,maximum_y])
+            self.plt.setRange(yRange=[min_y,maximum_y],padding=0)
       
         
       
@@ -1643,10 +1645,7 @@ Upload file first""")
                     self.backSelec.setChecked(True)
                     self.sumAction.setChecked(False)
                     
-                
-                        
 
-                    
            
                 except:
                     
@@ -2410,7 +2409,7 @@ Running Bayesian MCMC...""")
                         b=background[i]
                         obs_bkg.append(int(round(b)))
                         
-                        bkg_width+=b
+                        bkg_width+=int(round(b))
                         
                 
                 num=list(range(len(obs_tot)))
@@ -2444,7 +2443,7 @@ Running Bayesian MCMC...""")
                 max_chan=max(self.peakx)
 
                 peakXRange=self.peakx
-                peakCounts=self.peaky
+                peakCounts=[int(round(y)) for y in self.peaky] 
                 backCounts=obs_bkg
         
                 
@@ -2820,6 +2819,8 @@ return(centvec)
                     
                     
                     bayesTCent=robjects.r(bayesCentT)
+                    
+                    
                     trace3=np.array(bayesTCent(peakXRange,peakCounts,backCounts,tot_width,bkg_width,samples,tune,chain_num))
                     trace3=np.transpose(trace3)
                     trace3=trace3[0]
@@ -3561,11 +3562,12 @@ No parameters selected""")
                 max_chan=max(self.peakx)
 
                 peakXRange=self.peakx
-                peakCounts=self.peaky
+                peakCounts=np.array([int(round(y)) for y in self.peaky])
+        
                 back1Chans=self.x1range
-                back1Counts=self.reg1yrange
+                back1Counts=np.array([int(round(b1)) for b1 in self.reg1yrange])
                 back2Chans=self.x2range
-                back2Counts=self.reg2yrange
+                back2Counts=np.array([int(round(b2)) for b2 in self.reg2yrange])
                 firstChan=self.peakx[0]
                 lastChan=self.peakx[-1]
                 if self.sigmaS==True:
