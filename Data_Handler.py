@@ -30,13 +30,13 @@ class Spectrum(QMainWindow):
         #Creates graph and makes it a historgram
         pen = pg.mkPen(color="w",width=1)
         
-        
+        pg.setConfigOptions(antialias=False)
         self.plt.setLabel("left","Counts per channel")
         self.plt.setLabel("bottom","Channel")
         self.plt.setMouseEnabled(x=False,y=False)
+        self.plt.disableAutoRange()
         self.plot = self.plt.plot(self.x, self.y,pen=pen, stepMode="center") 
-        
-      
+        pg.ViewBox.suggestPadding = lambda *_: 0.05
 
         self.plt.setMenuEnabled()
         #Establishes a range for the default to data to be displayed in
@@ -100,6 +100,9 @@ class Spectrum(QMainWindow):
         self.perZoomOutAction=QAction(QIcon(icondir+"DownIcon.png"),"Zoom out 15%",self)
         self.perZoomOutAction.triggered.connect(self.PercentZoomOut)
         
+        self.setYRange = QAction(QIcon(icondir+"manualYRangeIcon"), "Set Y Range Manually",self)
+        self.setYRange.triggered.connect(self.SetYRange)
+        
         #Full y scale option for toolbar
         self.yScale=QAction(QIcon(icondir+"YScaleIcon.png"),"Set Full Y Scale",self)
         self.yScale.triggered.connect(self.Y_Full_Scale)
@@ -142,6 +145,7 @@ class Spectrum(QMainWindow):
         toolBar.addAction(self.zoomOutAction)
         toolBar.addAction(self.perZoomInAction)
         toolBar.addAction(self.perZoomOutAction)
+        toolBar.addAction(self.setYRange)
         toolBar.addAction(self.yScale)
         toolBar.addAction(self.logScale)
         toolBar.addAction(self.peakSelect)
@@ -189,7 +193,7 @@ class Spectrum(QMainWindow):
         self.dataWidget.setReadOnly(True)
 
         #self.dataWidget.setMaximumWidth(1200)
-        self.dataWidget.setText("Welcome!")
+        self.dataWidget.setText("Welcome to Trinity!")
         
         #Creates sliders used for moving the graph vertically
         self.s1 = QSlider(Qt.Vertical)
@@ -208,9 +212,9 @@ class Spectrum(QMainWindow):
         #Creates sliders used for moving the graph horizontally
         self.s2 = QSlider(Qt.Horizontal)
         self.s2.setMinimum(0)
-        self.s2.setMaximum(10000)
+        self.s2.setMaximum(100000)
         #self.s2.setTickPosition(QSlider.TicksAbove)
-        self.s2.setSingleStep(.0001)
+        self.s2.setSingleStep(.00001)
         self.s2.setTickInterval(1)
         self.s2.setPageStep(0)
         self.s2.sliderPressed.connect(self.sliderPressed)
@@ -272,6 +276,9 @@ class Spectrum(QMainWindow):
         self.backClickedRange=[]
         self.backUsed=0
         
+        self.manualYRangeCount=0
+        self.manualYRange=[]
+        self.settingYRange=False
         
         self.incrementZoomRegStorage=[]
         self.incremented=False
@@ -280,12 +287,8 @@ class Spectrum(QMainWindow):
         self.cursor_label.setFixedWidth(150)
         self.cursor_label.setFixedHeight(15)
         self.plt.scene().sigMouseMoved.connect(self.mouseMoved)
-        
-        self.count_label=QLabel("Channel=0")
-        self.count_label.setFixedWidth(150)
-        self.count_label.setFixedHeight(15)
+    
        
-        
         
         self.energy_label=QLabel("Energy=NA")
         self.energy_label.setFixedWidth(150)
@@ -410,6 +413,8 @@ Make sure file name contains no spaces""")
             
             Spectrum.Refresh(self)
             
+            self.manualYRange.clear()
+            
             log=False
             if self.logScale.isChecked()==True:
                 log=True
@@ -424,28 +429,30 @@ Make sure file name contains no spaces""")
             #Histogram requires n+1 x-values for n y-values
             x=int(self.x[-1]+1)
             self.x=np.append(self.x,x)
+        
             
             self.y =newy
             self.stored_y=self.y
-            pen=pg.mkPen(color='k',width=2)
+            pen=pg.mkPen(color='k',width=1)
         
             
             self.histX=Spectrum.HistShift(self.x)
+            
             self.plot.setData(self.histX, self.y,stepMode="center",pen=pen)
             
             self.plt.addItem(self.plot)
             
             
-        
+            if log==False:
+                #Automatically changes scale based on new data
+                
+                self.plt.setRange(xRange=[min(self.x),max(self.x)],yRange=[0,max(self.y)])
+                
             if log==True:
                 self.logScale.setChecked(True)
-                self.LogScale()  
+                Spectrum.LogScale(self)  
                 log=False
-            
-        #Automatically changes scale based on new data
-            self.plt.enableAutoRange(x=True,y=True )
-            self.plt.enableAutoRange(x=True,y=False)
-            
+        
            
       
 
@@ -560,7 +567,7 @@ Make sure file name contains no spaces""")
             self.tabs.removeTab(1)
             
             
-            pen=pg.mkPen(color="k",width=2)
+            pen=pg.mkPen(color="k",width=1)
             self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
             self.plt.addItem(self.plot)
             
@@ -591,14 +598,26 @@ Viewing window cleared""")
                 x=self.x[-1]-1
             else:
                 x=mousePoint.x()
-                
-            if mousePoint.y()>int(np.max(self.y)):
-                y=np.max(self.y)
-            elif mousePoint.y()<int(np.min(self.y)):
-                y=np.min(self.y)
-            else:
-                y=mousePoint.y()
-                
+            
+            
+            if self.logScale.isChecked()==False:
+                if mousePoint.y()>np.max(self.y):
+                    y=np.max(self.y)
+                elif mousePoint.y()<0:
+                    y=0
+            
+                else:
+                    y=mousePoint.y()
+                    
+            elif self.logScale.isChecked()==True:
+                if mousePoint.y()>np.log10(np.max(self.y)):
+                    y=np.log10(np.max(self.y))
+                elif mousePoint.y()<-1:
+                    y=-1
+            
+                else:
+                    y=mousePoint.y()
+                    
             self.posX=x
             self.posY=y
             
@@ -626,7 +645,8 @@ Viewing window cleared""")
             if self.peakSelect.isChecked()==True and self.backSelec.isChecked()==False:
                 if self.peakCounter==1:
                     self.peakReg.setRegion((self.peakClickedRange[0],self.posX))
-                    
+            if len(self.manualYRange)==1:
+                self.yRangeReg.setRegion((self.manualYRange[0],self.posY))
             if self.backSelec.isChecked()==True:
                 if self.backCounter==1:
                     self.backReg1.setRegion((self.backClickedRange[0],self.posX))
@@ -646,9 +666,10 @@ Deselect peak/background highkight region(s) to zoom in""")
                 
 
             
-            QApplication.setOverrideCursor(Qt.CrossCursor)
+            
             
             if self.zoomAction.isChecked()==True:
+                QApplication.setOverrideCursor(Qt.CrossCursor)
                 self.plt.scene().sigMouseClicked.connect(self.zoomClick)
                        
         
@@ -697,15 +718,13 @@ Deselect peak/background highkight region(s) to zoom out""")
         
         self.incrementZoomRegStorage.clear()
         self.zoomRegStorage.clear()
+        self.Ymax=0
         if self.logScale.isChecked()==True:
-            try:
-                self.plt.setRange(xRange=[self.x[0],self.x[-1]],yRange=[np.log10(min(self.y)),np.log10(max(self.y))])
-                
-            except:
-                self.plt.setRange(xRange=[self.x[0],self.x[-1]],yRange=[np.log10(.1),np.log10(max(self.y))])
+
+            self.plt.setRange(xRange=[self.x[0],self.x[-1]],yRange=[-1,np.log10(max(self.y))])
         elif self.logScale.isChecked()==False:
-            self.plt.setRange(xRange=[self.x[0],self.x[-1]],yRange=[min(self.y),max(self.y)])
-            
+            self.plt.setRange(xRange=[self.x[0],self.x[-1]],yRange=[0,max(self.y)])
+        self.manualYRange.clear()
         self.s1.setHidden(True)
         self.s2.setHidden(True)
         self.dataWidget.append(
@@ -755,11 +774,14 @@ Expanded to full view""")
                         self.minx=self.zoomClickedReg[0]
                         self.maxx=self.zoomClickedReg[0]+10
                         
-              
+                    self.stored_yvals=self.y[self.minx:self.maxx]
                     
-                    self.yvals=self.y[int(self.minx-self.x[0]):int(self.maxx-self.x[0])]
+                    if len(self.manualYRange)==1:
+                        self.yvals=self.manualYRange
+                    if len(self.manualYRange)==0:
+                        self.yvals=[0,max(self.stored_yvals)]
                
-                    self.stored_yvals=self.stored_y[self.minx:self.maxx]
+                
                     
                 #Maximum y value in the select region
                     self.Ymax=np.amax(self.yvals)
@@ -770,6 +792,7 @@ Expanded to full view""")
                     
                     
                     self.Ymax=np.amax(self.yvals)
+                  
                     
         
         
@@ -777,11 +800,9 @@ Expanded to full view""")
                     self.y_max=np.amax(self.y)
                     
                     self.y_start=(10001*self.Ymax-10000*min(self.yvals))/(self.Ymax-min(self.yvals))
-                    self.y_inc=(max(self.yvals)-min(self.yvals))/10001
+                    self.y_inc=((max(self.yvals)-min(self.yvals))-1)/10001
                     self.y_value=self.y_start
                     
-                    
-
                     
                     
                     self.s1.setValue(self.y_value)
@@ -806,9 +827,9 @@ Expanded to full view""")
             
                     
                     
-                    self.start=10000*((self.minx-self.x[0])/(self.x_avg))/m
+                    self.start=100000*((self.minx-self.x[0])/(self.x_avg))/m
            
-                    self.increment=(m*self.x_avg)/10000
+                    self.increment=(m*self.x_avg)/100000
                          
                
                     self.s2.setValue(int(round(self.start)))
@@ -824,8 +845,15 @@ Expanded to full view""")
                     self.plt.setRange(xRange=[self.minx,self.maxx])
                     
             
-                        
-                    self.plt.setRange(yRange=[np.amin(self.yvals),self.Ymax])
+                    if self.logScale.isChecked()==False:  
+                        self.plt.setRange(yRange=[min(self.yvals),self.Ymax])
+                    if self.logScale.isChecked()==True:
+                        if min(self.yvals)>0:
+                            self.plt.setRange(yRange=[np.log10(np.amin(self.yvals)),np.log10(self.Ymax)])
+                   
+                        else:
+                            self.plt.setRange(yRange=[-1,np.log10(self.Ymax)])
+       
                     
                     
 
@@ -844,12 +872,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                     self.zoomClickedReg.clear()
                     QApplication.setOverrideCursor(Qt.ArrowCursor)
                     
-                    if self.logScale.isChecked()==True:
-                        if min(self.yvals)>0:
-                            self.plt.setRange(yRange=[np.log10(np.amin(self.yvals)),np.log10(self.Ymax)])
-                   
-                        else:
-                            self.plt.setRange(yRange=[np.log10(.1),np.log10(self.Ymax)])
+                
                     self.zoomAction.setChecked(False)
                     
                     self.prevMins1=[self.minx]
@@ -908,7 +931,12 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
 
         self.x_avg=self.maxx-self.minx
                     
-        self.yvals=self.y[int(self.minx-self.x[0]):int(self.maxx-self.x[0])]
+        self.stored_yvals=self.y[int(self.minx-self.x[0]):int(self.maxx-self.x[0])]
+                
+        if len(self.manualYRange)==1:
+            self.yvals=self.manualYRange
+        if len(self.manualYRange)==0:
+            self.yvals=[0,max(self.stored_yvals)]
         
                
                     
@@ -923,7 +951,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
 
         if len(self.zoomRegStorage)==0:
             self.y_start=(10001*self.Ymax_reg-10000*min(self.yvals))/(max(self.yvals)-min(self.yvals))
-            self.y_inc=(max(self.yvals)-min(self.yvals))/10001
+            self.y_inc=((max(self.yvals)-min(self.yvals))-1)/10001
             self.y_value=self.y_start
             
             
@@ -935,9 +963,9 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                     
             
                     
-        self.start=10000*((self.minx-self.x[0])/(self.x_avg))/m
+        self.start=100000*((self.minx-self.x[0])/(self.x_avg))/m
                     
-        self.increment=(m*self.x_avg)/10000
+        self.increment=(m*self.x_avg)/100000
                   
         self.grid.addWidget(self.s2,2,1,1,2)
         self.s2.setHidden(False)
@@ -987,12 +1015,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             
             
             if self.maxx-self.minx>=self.x[-1]-self.x[0]:
-                self.incrementZoomRegStorage.clear() 
-                self.zoomRegStorage.clear()
-                self.s2.setHidden(True)
-                self.s1.setHidden(True)
-                
-                self.plt.setRange(xRange=[self.x[0],self.x[-1]],yRange=[min(self.y),max(self.y)])
+                Spectrum.zoomOut(self)
                 
                 
             
@@ -1005,7 +1028,12 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
 
                 self.x_avg=self.maxx-self.minx
                         
-                self.yvals=self.y[int(self.minx-self.x[0]):int(self.maxx-self.x[0])]
+                self.stored_yvals=self.y[int(self.minx-self.x[0]):int(self.maxx-self.x[0])]
+                
+                if len(self.manualYRange)==1:
+                    self.yvals=self.manualYRange
+                if len(self.manualYRange)==0:
+                    self.yvals=[0,max(self.stored_yvals)]
    
                 #Maximum y value in the select region
                 self.Ymax_reg=np.amax(self.yvals)
@@ -1014,9 +1042,9 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                     
             
                     
-                self.start=10000*((self.minx-self.x[0])/(self.x_avg))/m
+                self.start=100000*((self.minx-self.x[0])/(self.x_avg))/m
                     
-                self.increment=(m*self.x_avg)/10000
+                self.increment=(m*self.x_avg)/100000
                   
         
         
@@ -1052,12 +1080,6 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
      
         
            
-        
-     
-        
-         
-    
-
     
                 
     def sliderPressed(self):
@@ -1086,7 +1108,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                 self.incrementZoomRegStorage[-1][0]-=offset
                 self.incrementZoomRegStorage[-1][1]-=offset
             
-            if self.endSlideVal==100000:
+            if self.endSlideVal==1000000:
                 offset=self.x[-1]-self.incrementZoomRegStorage[-1][1]
                 
                 self.incrementZoomRegStorage[-1][0]+=offset
@@ -1114,7 +1136,6 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             
             
             
-            
             y=self.y_inc*(value-self.y_start)
             
             if self.logScale.isChecked()==True:
@@ -1123,17 +1144,18 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                     self.plt.setRange(yRange=[np.log10(np.amin(self.yvals)),np.log10(self.Ymax+y)])
                    
                 else:
-                    self.plt.setRange(yRange=[np.log10(.1),np.log10(self.Ymax+y)])
+                    self.plt.setRange(yRange=[-1,np.log10(self.Ymax+y)])
             
                 
             
-
+            
                 
             else:
                 self.plt.setRange(yRange=[min(self.yvals),self.Ymax+y])
         
            
             self.ChangedYMax=self.Ymax+y
+        
             if len(self.zoomRegStorage)>=1:
                 try:
                     change=self.Ymax+y-(self.prevYMins[0])
@@ -1142,12 +1164,90 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                 except:
                     pass
  
+    
+        
+    def SetYRange(self):
+        if self.newfile!="":
+            if self.settingYRange==False:
+                QApplication.setOverrideCursor(Qt.CrossCursor)
+                self.zoomAction.setEnabled(False)
+                self.peakSelect.setEnabled(False)
+                self.backSelec.setEnabled(False)
+                self.zoomOutAction.setEnabled(False)
+                self.manualYRange.clear()
+                self.plt.scene().sigMouseClicked.connect(self.YRangeCursor)
+                
+                self.settingYRange=True
+            else:
+                QApplication.setOverrideCursor(Qt.ArrowCursor)
+                self.plt.scene().sigMouseClicked.disconnect(self.YRangeCursor)
+                self.zoomAction.setEnabled(True)
+                self.peakSelect.setEnabled(True)
+                self.backSelec.setEnabled(True)
+                self.zoomOutAction.setEnabled(True)
+                
+                self.manualYRangeCount=0
+                self.manualYRange.clear()
+                try:
+                    self.plt.removeItem(self.yRangeReg)
+                except:
+                    pass
+                
+                self.settingYRange=False
+                
+        
+    def YRangeCursor(self):
+        if self.manualYRangeCount<2:
             
+            if self.manualYRangeCount==0:
+                    self.yRangeReg=pg.LinearRegionItem(values=(self.posY,self.posY),movable=False,  orientation='horizontal')
+                    color=pg.mkColor(0,255,0,70)
+                    brush=pg.mkBrush(color=color)
+
+                    self.yRangeReg.setBrush(brush)
+                    
+                    self.plt.addItem(self.yRangeReg)
+            
+            self.manualYRange.append(self.posY)
+            
+            self.manualYRangeCount+=1
+            
+        if self.manualYRangeCount==2:
+            QApplication.setOverrideCursor(Qt.ArrowCursor)
+            self.plt.scene().sigMouseClicked.disconnect(self.YRangeCursor)
+            
+            self.manualYRangeCount=0
+            
+            self.plt.setRange(yRange=[min(self.manualYRange),max(self.manualYRange)])
+
+            self.plt.removeItem(self.yRangeReg)
+            
+            if self.logScale.isChecked()==True:
+                
+                self.manualYRange[0]=10**(self.manualYRange[0])
+                self.manualYRange[1]=10**(self.manualYRange[1])
+            
+            self.Ymax=max(self.manualYRange)
+            self.yvals=self.manualYRange
+  
+            self.y_start=(10001*self.Ymax-10000*min(self.yvals))/(self.Ymax-min(self.yvals))
+           
+            self.y_inc=((max(self.yvals)-min(self.yvals))-1)/10001
+            self.y_value=self.y_start
+            self.s1.setValue(self.y_value)
+            
+            
+            self.zoomAction.setEnabled(True)
+            self.peakSelect.setEnabled(True)
+            self.backSelec.setEnabled(True)
+            self.zoomOutAction.setEnabled(True)
+            self.settingYRange=False
+       
         
     def Y_Full_Scale(self):
         if len(self.incrementZoomRegStorage)==0:
             pass
-        if len(self.incrementZoomRegStorage)>0:
+        if len(self.incrementZoomRegStorage)>0 or len(self.manualYRange)>0:
         
             x_min=int(self.incrementZoomRegStorage[0][0]-self.x[0])
             x_max=int(self.incrementZoomRegStorage[0][1]-self.x[0])+1
@@ -1160,11 +1260,11 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             min_y=min(self.yvals)
         
         
-        
+            self.manualYRange.clear()
             self.Ymax=maximum_y
             self.ChangedYMax=maximum_y
-            self.y_inc=(max(self.yvals)-min(self.yvals))/10001
-            self.y_start=int(round(((10001*maximum_y-10000*min_y)/(maximum_y-min_y))))
+            self.y_inc=(max(self.yvals)-1)/10001
+            self.y_start=int(round(((10001*maximum_y)/(maximum_y))))
                 
             
                     
@@ -1175,12 +1275,11 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                 maximum_y=np.log10(maximum_y)
       
             
-                if min(self.yvals)<=0:
+                min_y=-1
+
+            else:
+                min_y=0
                 
-                    min_y=np.log10(.1)
-                if min(self.y)>0:
-                    min_y=np.log10(min(self.yvals))
-       
             self.plt.setRange(yRange=[min_y,maximum_y])
       
         
@@ -1204,6 +1303,7 @@ Converted to Log Scale""")
 
             self.dataWidget.moveCursor(QtGui.QTextCursor.End)
                 
+        
             logy=[]
   
             for i in range(len(self.y)):
@@ -1213,11 +1313,17 @@ Converted to Log Scale""")
                     logy.append(self.y[i])
                     
             logx=self.x
-            pen=pg.mkPen(color='k',width=2)
+            pen=pg.mkPen(color='k',width=1)
          
             if self.newfile!="":
                 
                 self.plot.setData(Spectrum.HistShift(logx), logy,pen=pen,stepMode="center")
+                self.plt.setLogMode(False,True) 
+            pen=pg.mkPen(color='k',width=1)
+         
+            if self.newfile!="":
+                
+                #self.plot.setData(Spectrum.HistShift(self.x), self.y,pen=pen,stepMode="center")
                 self.plt.setLogMode(False,True) 
             
             if len(self.incrementZoomRegStorage)>=1:
@@ -1227,30 +1333,35 @@ Converted to Log Scale""")
                 xmax=self.incrementZoomRegStorage[-1][1]-self.x[0]
                 
                 
-             
-                
-                
                 try:
                     Ymax=self.ChangedYMax
                 except:
-                    Ymax=self.incrementZoomRegStorage[-1][-1]
-                y_min=min(self.y[int(round(xmin)):int(round(xmax))+1])
+                    Ymax=self.Ymax
+                    
+                if len(self.manualYRange)>=1:
+                    y_min=min(self.yvals)
+                else:
+                    y_min=.1
                 
-                try:
+                if y_min>0:
                     self.plt.setRange(yRange=[np.log10(y_min),np.log10(Ymax)])
-                except:
-                    self.plt.setRange(yRange=[np.log10(.1),np.log10(Ymax)])
+                else:
+                    self.plt.setRange(yRange=[-1,np.log10(Ymax)])
                 self.plt.setRange(xRange=[xmin+self.x[0],xmax+self.x[0]])
 
-            
 
+            elif len(self.manualYRange)>=1:
+             
+                self.plt.setRange(yRange=[np.log10(min(self.yvals)),np.log10(max(self.yvals))])
+            else:
+                self.plt.setRange(yRange=[-1,np.log10(max(self.y))])
             
    
             if self.sumAction.isChecked()==True or self.mcmcAction.isChecked()==True:
                 y=[]
                 for i in range(len(self.peaky)):
                     if self.peaky[i]<=0:
-                        y.append(.1)
+                        y.append(-1)
                     else:
                         y.append(np.log10(self.peaky[i]))
                 
@@ -1259,7 +1370,7 @@ Converted to Log Scale""")
                 x=np.append(x,x[-1]+1)
                 self.plt.removeItem(self.totalfill)
                 color=pg.mkColor(0,255,255,50)
-                pen=pg.mkPen(color="k",width=2)
+                pen=pg.mkPen(color="k",width=1)
                 brush=pg.mkBrush(color=color)
 
                 self.totalfill.setData(Spectrum.HistShift(x),y,pen=pen,fillLevel=0,brush=brush,stepMode="center")
@@ -1272,13 +1383,13 @@ Converted to Log Scale""")
                     y2=[]
                     for i in range(len(self.reg1yrange)):
                         if self.reg1yrange[i]<=0:
-                            y1.append(.1)
+                            y1.append(-1)
                         else:
                             y1.append(np.log10(self.reg1yrange[i]))
                             
                     for i in range(len(self.reg2yrange)):
                         if self.reg2yrange[i]<=0:
-                            y2.append(.1)
+                            y2.append(-1)
                         else:
                             y2.append(np.log10(self.reg2yrange[i]))
                     
@@ -1293,7 +1404,7 @@ Converted to Log Scale""")
                         x2=np.append(x2,x2[-1]+1)
                     
                     color=pg.intColor(0, alpha=50)
-                    pen=pg.mkPen(color="k",width=2)
+                    pen=pg.mkPen(color="k",width=1)
     
                     brush=pg.mkBrush(color=color)
                     self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
@@ -1305,12 +1416,11 @@ Converted to Log Scale""")
 """
 Converted to Linear Scale""")
             self.dataWidget.moveCursor(QtGui.QTextCursor.End)
-            pen=pg.mkPen(color='k',width=2)
+            pen=pg.mkPen(color='k',width=1)
             if self.newfile!="":
                 self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                 self.plt.setLogMode(False,False)
                 
-                self.plt.setRange(yRange=[min(self.y),max(self.y)])
                 
             if len(self.incrementZoomRegStorage)>=1:
                 
@@ -1321,20 +1431,27 @@ Converted to Linear Scale""")
                 try:
                     Ymax=self.ChangedYMax
                 except:
-                    Ymax=self.incrementZoomRegStorage[-1][-1]
-                y_min=min(self.y[int(round(xmin)):int(round(xmax))+1])
+                    Ymax=self.Ymax
+                y_min=min(self.yvals)
                 
                 
                 self.plt.setRange(yRange=[y_min,Ymax])
+          
        
                 self.plt.setRange(xRange=[xmin+self.x[0],xmax+self.x[0]])
+                
+            elif len(self.manualYRange)>=1:
 
+                self.plt.setRange(yRange=[min(self.yvals),max(self.yvals)])
+                
+            elif len(self.manualYRange)==0 and len(self.incrementZoomRegStorage)==0:
+                self.plt.setRange(yRange=[0,max(self.y)])
                    
             
             if self.sumAction.isChecked()==True or self.mcmcAction.isChecked()==True:
                 self.plt.removeItem(self.totalfill)
                 color=pg.mkColor(0,255,255,50)
-                pen=pg.mkPen(color="k",width=2)
+                pen=pg.mkPen(color="k",width=1)
                 brush=pg.mkBrush(color=color)
                 x=self.peakx
                 x=np.append(x,x[-1]+1)
@@ -1356,7 +1473,7 @@ Converted to Linear Scale""")
                   
                     
                     color=pg.intColor(0, alpha=50)
-                    pen=pg.mkPen(color="k",width=2)
+                    pen=pg.mkPen(color="k",width=1)
     
                     brush=pg.mkBrush(color=color)
                     self.reg1fill.setData(Spectrum.HistShift(x1),y1,pen=pen,fillLevel=0,brush=brush,stepMode="center")
@@ -1414,7 +1531,7 @@ Converted to Linear Scale""")
                     self.gaussFitAction.setEnabled(True)
                     self.sumAction.setEnabled(True)
               
-                    pen=pg.mkPen(color="k",width=2)
+                    pen=pg.mkPen(color="k",width=1)
                     self.plt.clear()
                     self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                     self.plt.addItem(self.plot)
@@ -1580,10 +1697,7 @@ Upload file first""")
                     self.backSelec.setChecked(True)
                     self.sumAction.setChecked(False)
                     
-                
-                        
 
-                    
            
                 except:
                     
@@ -1604,7 +1718,7 @@ Upload file first""")
             elif "gaussFit" in names:
     
 
-                pen=pg.mkPen(color="k",width=2)
+                pen=pg.mkPen(color="k",width=1)
                 
                 
                 self.plt.clear()
@@ -1776,7 +1890,7 @@ Select Peak first""")
                  
                     
                     color=pg.intColor(0, alpha=50)
-                    pen=pg.mkPen(color="k",width=2)
+                    pen=pg.mkPen(color="k",width=1)
                     linepen=pg.mkPen(color="r")
                     brush=pg.mkBrush(color=color)
                     #Fills in the first selected region
@@ -1856,7 +1970,7 @@ Select peak first!""")
                 y=self.peaky
                 
                 color=pg.mkColor(0,255,255,50)
-                pen=pg.mkPen(color="k",width=2)
+                pen=pg.mkPen(color="k",width=1)
                 brush=pg.mkBrush(color=color)
                 
                 
@@ -2208,7 +2322,7 @@ Running Bayesian MCMC...""")
           
                 y=self.peaky
                 color=pg.mkColor(0,255,255,50)
-                pen=pg.mkPen(color="k",width=2)
+                pen=pg.mkPen(color="k",width=1)
                 brush=pg.mkBrush(color=color)
              
                 self.totalfill= pg.PlotCurveItem(name="totalFill")
@@ -2357,7 +2471,7 @@ Running Bayesian MCMC...""")
    
                 bkg_width=int(round(bkg_width))
                 
-            
+
                 if sample_size.text()=="" or sample_size.text()==0:
                     samples=3000
                 else:
@@ -2381,9 +2495,14 @@ Running Bayesian MCMC...""")
                 max_chan=max(self.peakx)
 
                 peakXRange=self.peakx
-                peakCounts=self.peaky
+                peakCounts=peakCounts=[int(round(y)) for y in self.peaky] 
                 backCounts=obs_bkg
         
+         
+                self.dataWidget.append(
+"""
+Running Bayesian MCMC...""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
                 
                 
                 #I accidentally wrote all of the preceeding code with an extra 
@@ -2420,9 +2539,7 @@ obsbkg ~ dpois(xb)
 
 
 # half-normal prior
-# for the sigmas, we choose observed total and background counts (with 1 count added
-#to avoid issues with zero counts)
-
+# for the sigmas, we choose observed total and background counts 
  s ~ dnorm(0.0, pow(tot_width+1, -2))T(0,)
  xb ~ dnorm(0.0, pow(bkg_width+1, -2))T(0,)
 
@@ -2757,6 +2874,8 @@ return(centvec)
                     
                     
                     bayesTCent=robjects.r(bayesCentT)
+                    
+                    
                     trace3=np.array(bayesTCent(peakXRange,peakCounts,backCounts,tot_width,bkg_width,samples,tune,chain_num))
                     trace3=np.transpose(trace3)
                     trace3=trace3[0]
@@ -2890,7 +3009,7 @@ return(centvec)
                     #Runs a KDE on the net counts at each x value
                     y_smooth=sp.stats.gaussian_kde(t_s_chains[i])(x_smooth)
                     
-                    pen=pg.mkPen(color=colors[i],width=2)
+                    pen=pg.mkPen(color=colors[i],width=1)
                     
                     #Plots the smoothed curve 
                     chainplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Trunc. Norm.)")
@@ -2908,7 +3027,7 @@ return(centvec)
                     #Runs a KDE on the net counts at each x value
                     y_smooth=sp.stats.gaussian_kde(g_s_chains[i])(x_smooth)
                     
-                    pen=pg.mkPen(color=colors[6-i],width=2)
+                    pen=pg.mkPen(color=colors[6-i],width=1)
                     
                     #Plots the smoothed curve 
                     chainplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
@@ -2991,7 +3110,7 @@ return(centvec)
                         x=x[0:-1]
 
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     s_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Trunc. Norm.)")
                     
                 for i in range(chain_num):
@@ -3003,7 +3122,7 @@ return(centvec)
                         x=x[0:-1]
                     
                     color=pg.intColor(2*i, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     s_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
                     
                 s_traces.setMouseEnabled(x=False,y=False)
@@ -3070,7 +3189,7 @@ return(centvec)
                     chanmin,chanmax=np.amin(chain_centroid),np.amax(chain_centroid)
                     x_smooth = np.linspace(chanmin, chanmax, 200)
                     y_smooth = sp.stats.gaussian_kde(y_sm)(x_smooth)
-                    pen=pg.mkPen(color=colors[i],width=2)
+                    pen=pg.mkPen(color=colors[i],width=1)
                     centplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Trunc. Norm.)")
                     
                 for i in range(chain_num):
@@ -3094,7 +3213,7 @@ return(centvec)
                     chanmin,chanmax=np.amin(chain_centroid),np.amax(chain_centroid)
                     x_smooth = np.linspace(chanmin, chanmax, 200)
                     y_smooth = sp.stats.gaussian_kde(y_sm)(x_smooth)
-                    pen=pg.mkPen(color=colors[6-i],width=2)
+                    pen=pg.mkPen(color=colors[6-i],width=1)
                     centplt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
                     
                     
@@ -3165,7 +3284,7 @@ return(centvec)
                     y=y[::thin]
         
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     cent_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Trunc. Norm.)")
                     
                 for i in range(chain_num):
@@ -3187,7 +3306,7 @@ return(centvec)
                     y=g_chain
                     y=y[::thin]
                     color=pg.intColor(2*i, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     cent_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1)+" (Gamma)")
                     
                 
@@ -3498,11 +3617,12 @@ No parameters selected""")
                 max_chan=max(self.peakx)
 
                 peakXRange=self.peakx
-                peakCounts=self.peaky
+                peakCounts=np.array([int(round(y)) for y in self.peaky])
+        
                 back1Chans=self.x1range
-                back1Counts=self.reg1yrange
+                back1Counts=np.array([int(round(b1)) for b1 in self.reg1yrange])
                 back2Chans=self.x2range
-                back2Counts=self.reg2yrange
+                back2Counts=np.array([int(round(b2)) for b2 in self.reg2yrange])
                 firstChan=self.peakx[0]
                 lastChan=self.peakx[-1]
                 if self.sigmaS==True:
@@ -3558,7 +3678,8 @@ lastChan<-lastChan
 widthEst<-wEst
 heightEst<-median(obstot)
 centEst<-mean(xchann)
-slopeEst<-mean(obsbkg2)-mean(obsbkg1)/(mean(xchann2)-mean(xchann1))
+slopeEst<-(mean(obsbkg2)-mean(obsbkg1))/(mean(xchann2)-mean(xchann1))
+yIntEst <- mean(obsbkg1)-slopeEst*mean(xchann1)
 
 
 ######################################################################                  
@@ -3632,7 +3753,7 @@ ourmodel <- jags.model(f, data = list(
               lastChan=lastChan
 							  ),
 
-               inits = list(a = heightEst, b = centEst, c =widthEst , d = slopeEst, e=0),
+               inits = list(a = heightEst, b = centEst, c = widthEst , d = slopeEst, e = yIntEst),
                n.chains = n.chains, n.adapt = n.adapt, quiet=TRUE)
   
 update(ourmodel, n.burn)
@@ -3717,16 +3838,15 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     thin=1
                 if gaussThin==0:
                     gaussThin=1
+                    
+                gaussXVals = np.linspace(int(self.x1range[0]), int(self.x2range[-1]), int(self.x2range[-1]-self.x1range[0]))
                 for i in range(0,len(trace[0]),gaussThin):
                     height=trace[0][i]
                     cent=trace[1][i]
-  
-                   
-      
 
                     width=float(trace[2][i])
-                    x_vals = np.linspace(int(self.x1range[0]), int(self.x2range[-1]), int(self.x2range[-1]-self.x1range[0]))
-            
+
+                    x_vals=gaussXVals
                     y_vals=[]
                     
                     
@@ -3741,7 +3861,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y_vals=y+background
                     
                 
-                    pen=pg.mkPen(color="r",width=1.5)
+                    pen=pg.mkPen(color="r",width=1)
                     
                     self.plt.plot(x_vals,y_vals,pen=pen,name="gaussFit")
                     
@@ -3754,7 +3874,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                
                 regXRange.append(regXRange[-1]+1)
                 regXRange=np.array(regXRange)
-                highlightPen=pg.mkPen(color="b",width=2,alpha=100)
+                highlightPen=pg.mkPen(color="b",width=1,alpha=100)
                
                 
                 self.plt.plot(Spectrum.HistShift(regXRange),regYRange,pen=highlightPen,stepMode="center",name="regionHighlight")
@@ -3798,7 +3918,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Runs a KDE on the net counts at each x value
                     y_smooth=sp.stats.gaussian_kde(sigVals[i])(x_smooth)
                     
-                    pen=pg.mkPen(color=colors[i],width=2)
+                    pen=pg.mkPen(color=colors[i],width=1)
                     
                     #Plots the smoothed curve 
                     signalPos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
@@ -3844,7 +3964,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y=y[::thin]
 
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     signal_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
                 self.sigTraceTab=signal_traces
@@ -3887,7 +4007,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Runs a KDE on the net counts at each x value
                     y_smooth=sp.stats.gaussian_kde(aVals[i])(x_smooth)
                     
-                    pen=pg.mkPen(color=colors[i],width=2)
+                    pen=pg.mkPen(color=colors[i],width=1)
                     
                     #Plots the smoothed curve 
                     aPos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
@@ -3910,7 +4030,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y=y[::thin]
 
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     a_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
                 self.aTraceTab=a_traces
@@ -3944,7 +4064,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Runs a KDE on the net counts at each x value
                     y_smooth=sp.stats.gaussian_kde(bVals[i])(x_smooth)
                     
-                    pen=pg.mkPen(color=colors[i],width=2)
+                    pen=pg.mkPen(color=colors[i],width=1)
                     
                     #Plots the smoothed curve 
                     bPosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
@@ -3982,7 +4102,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y=y[::thin]
     
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     b_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
                 
@@ -4017,7 +4137,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     #Runs a KDE on the net counts at each x value
                     y_smooth=sp.stats.gaussian_kde(cVals[i])(x_smooth)
                     
-                    pen=pg.mkPen(color=colors[i],width=2)
+                    pen=pg.mkPen(color=colors[i],width=1)
                     
                     #Plots the smoothed curve 
                     cPosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
@@ -4037,7 +4157,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     y=y[::thin]
 
                     color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
-                    pen=pg.mkPen(color=color,width=2)
+                    pen=pg.mkPen(color=color,width=1)
                     c_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
                 self.cTraceTab=c_traces
@@ -4080,7 +4200,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                     self.sumAction.setEnabled(True)
                     
                     
-                    pen=pg.mkPen(color="k",width=2)
+                    pen=pg.mkPen(color="k",width=1)
                     self.plt.clear()
                     self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
                     self.plt.addItem(self.plot)
