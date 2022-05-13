@@ -807,7 +807,7 @@ Expanded to full view""")
                     
                     
                     
-                    self.s1.setValue(int(self.y_value))
+                    self.s1.setValue(int(round(self.y_value)))
 
 
 
@@ -957,7 +957,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             self.y_value=self.y_start
             
             
-            self.s1.setValue(int(self.y_value))
+            self.s1.setValue(int(round(self.y_value)))
             
              
                     
@@ -1236,7 +1236,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
            
             self.y_inc=((max(self.yvals)-min(self.yvals))-1)/10001
             self.y_value=self.y_start
-            self.s1.setValue(int(self.y_value))
+            self.s1.setValue(int(round(self.y_value)))
             
             
             self.zoomAction.setEnabled(True)
@@ -1270,7 +1270,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                 
             
                     
-            self.s1.setValue(int(self.y_start))
+            self.s1.setValue(int(round(self.y_start)))
         
         
             if self.logScale.isChecked()==True:

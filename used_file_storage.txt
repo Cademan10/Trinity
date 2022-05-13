@@ -1,9 +1,0 @@
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
-testing	C:/Users/cader/Desktop/TrinityRepo/testing.dat
-testing	C:/Users/cader/Desktop/TrinityRepo/testing.dat
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
-onRes_SING	C:/Users/cader/Desktop/Trinity/spectra/435_SING_data/onRes_SING.dat
