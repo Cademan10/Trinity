@@ -159,7 +159,7 @@ class Spectrum(QMainWindow):
 
         #Side bar displaying previously uploaded files  
         self.usedFiles = QDockWidget("Previously Used Files", self)
-        self.usedFiles.setFeatures(QtGui.QDockWidget.NoDockWidgetFeatures)
+        self.usedFiles.setFeatures(QtWidgets.QDockWidget.NoDockWidgetFeatures)
         
         sideBarWidget=QWidget()
         sideLayout=QVBoxLayout()
@@ -202,7 +202,7 @@ class Spectrum(QMainWindow):
         self.s1.setValue(0)
         #self.s1.setTickPosition(QSlider.TicksRight)
         self.s1.setTickInterval(1)
-        self.s1.setSingleStep(.0001)
+        self.s1.setSingleStep(1)
         #Prevents slider from moving by simply clicking on it 
         self.s1.setPageStep(0)
         self.s1.valueChanged.connect(self.Move_Y)
@@ -211,10 +211,9 @@ class Spectrum(QMainWindow):
         
         #Creates sliders used for moving the graph horizontally
         self.s2 = QSlider(Qt.Horizontal)
-        self.s2.setMinimum(0)
         self.s2.setMaximum(100000)
         #self.s2.setTickPosition(QSlider.TicksAbove)
-        self.s2.setSingleStep(.00001)
+        self.s2.setSingleStep(1000)
         self.s2.setTickInterval(1)
         self.s2.setPageStep(0)
         self.s2.sliderPressed.connect(self.sliderPressed)
@@ -361,8 +360,11 @@ class Spectrum(QMainWindow):
             
         #Uploads new file
         if self.previous==False:
-            self.newfile=QFileDialog.getOpenFileName(None,"Spectrum Files","*.dat")[0]
-            
+            if home_file_dir=="":
+                self.newfile=QFileDialog.getOpenFileName(None,"Spectrum Files","*.dat")[0]
+            else:
+                self.newfile=QFileDialog.getOpenFileName(None,"Spectrum Files",home_file_dir,"*.dat")[0]
+               
       
         if self.previous==True:
             self.newfile=self.newfile
@@ -805,7 +807,7 @@ Expanded to full view""")
                     
                     
                     
-                    self.s1.setValue(self.y_value)
+                    self.s1.setValue(int(self.y_value))
 
 
 
@@ -955,7 +957,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             self.y_value=self.y_start
             
             
-            self.s1.setValue(self.y_value)
+            self.s1.setValue(int(self.y_value))
             
              
                     
@@ -1015,7 +1017,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
             
             
             if self.maxx-self.minx>=self.x[-1]-self.x[0]:
-                Spectrum.zoomOut(self)
+                Spectrum.ZoomOut(self)
                 
                 
             
@@ -1234,7 +1236,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
            
             self.y_inc=((max(self.yvals)-min(self.yvals))-1)/10001
             self.y_value=self.y_start
-            self.s1.setValue(self.y_value)
+            self.s1.setValue(int(self.y_value))
             
             
             self.zoomAction.setEnabled(True)
@@ -1268,7 +1270,7 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
                 
             
                     
-            self.s1.setValue(self.y_start)
+            self.s1.setValue(int(self.y_start))
         
         
             if self.logScale.isChecked()==True:

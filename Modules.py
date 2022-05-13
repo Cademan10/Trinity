@@ -26,6 +26,10 @@ import rpy2.robjects.packages as rpackages
 from rpy2.robjects.vectors import StrVector
 
 
+#### SET HOME DIRECTORY OF FILES IN BETWEEN QUOTATIONS ###
+home_file_dir = r""
+
+
 
 
 base = importr('base')
