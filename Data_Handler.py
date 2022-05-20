@@ -53,7 +53,7 @@ class Spectrum(QMainWindow):
         #Upload spectrum section of file menu
         loadAction=QAction("Load Spectrum File",self)
         loadAction.triggered.connect(self.NewFile)
-        loadAction.setShortcut("Ctrl+N")
+        loadAction.setShortcut("Ctrl+O")
         FileMenu.addAction(loadAction)
         
         
@@ -82,23 +82,27 @@ class Spectrum(QMainWindow):
         #Refresh option for toolbar
         refreshAction=QAction(QIcon(icondir+"RefreshIcon.png"),"Refresh",self)
         refreshAction.triggered.connect(self.Refresh)
+        refreshAction.setShortcut("Ctrl+R")
     
        
         
-        
         #Zoom option for toolbar
-        self.zoomAction=QAction(QIcon(icondir+"ZoomInIcon.png"),"Select Region to Zoom",self,checkable=True)
+        self.zoomAction=QAction(QIcon(icondir+"ZoomInIcon.png"),"Select Region to Zoom (Ctrl+Z)",self,checkable=True)
         self.zoomAction.triggered.connect(self.zoomCursor)
+        self.zoomAction.setShortcut("Ctrl+Z")
         
         self.zoomOutAction=QAction(QIcon(icondir+"ZoomOutIcon.png"),"Zoom Out",self)
         self.zoomOutAction.triggered.connect(self.ZoomOut)
+        self.zoomOutAction.setShortcut("Ctrl+Shift+Z")
         
         
-        self.perZoomInAction=QAction(QIcon(icondir+"UpIcon.png"),"Zoom in 15%",self)
+        self.perZoomInAction=QAction(QIcon(icondir+"UpIcon.png"),"Zoom in 15% (Ctrl+ +)",self)
         self.perZoomInAction.triggered.connect(self.PercentZoomIn)
+        self.perZoomInAction.setShortcut("Ctrl+Up")
         
-        self.perZoomOutAction=QAction(QIcon(icondir+"DownIcon.png"),"Zoom out 15%",self)
+        self.perZoomOutAction=QAction(QIcon(icondir+"DownIcon.png"),"Zoom out 15% (Ctrl+ -)",self)
         self.perZoomOutAction.triggered.connect(self.PercentZoomOut)
+        self.perZoomOutAction.setShortcut("Ctrl+Down")
         
         self.setYRange = QAction(QIcon(icondir+"manualYRangeIcon"), "Set Y Range Manually",self)
         self.setYRange.triggered.connect(self.SetYRange)
@@ -108,33 +112,48 @@ class Spectrum(QMainWindow):
         self.yScale.triggered.connect(self.Y_Full_Scale)
         
         #Peak selection option for toolbar
-        self.peakSelect=QAction(QIcon(icondir+"PeakIcon.png"),"Select Peak",self,checkable=True)
+        self.peakSelect=QAction(QIcon(icondir+"PeakIcon.png"),"Select Peak (Ctrl+P)",self,checkable=True)
         self.peakSelect.triggered.connect(self.peakCursor)
+        self.peakSelect.setShortcut("Ctrl+P")
         
         #Background selection option for toolbar
-        self.backSelec=QAction(QIcon(icondir+"BackgroundIcon.png"),"Select Background",self,checkable=True)
+        self.backSelec=QAction(QIcon(icondir+"BackgroundIcon.png"),"Select Background (Ctrl+B)",self,checkable=True)
         self.backSelec.triggered.connect(self.backCursor)
+        self.backSelec.setShortcut("Ctrl+B")
         
         #Sum option for toolbar
-        self.sumAction=QAction(QIcon(icondir+"SumIcon.png"),"Frequentist Sum",self,checkable=True)
+        self.sumAction=QAction(QIcon(icondir+"SumIcon.png"),"Frequentist Sum (Ctrl+F)",self,checkable=True)
         self.sumAction.triggered.connect(self.Sum)
+        self.sumAction.setShortcut("Ctrl+F")
         
         
         #MCMC algorithm button
-        self.mcmcAction=QAction(QIcon(icondir+"MCMCIcon.png"),"Bayesian Sum",self,checkable=True)
+        self.mcmcAction=QAction(QIcon(icondir+"MCMCIcon.png"),"Bayesian Sum (Ctrl+Shift+B)",self,checkable=True)
         self.mcmcAction.triggered.connect(self.MCMC)
+        self.mcmcAction.setShortcut("Ctrl+Shift+B")
 
-        self.gaussFitAction=QAction(QIcon(icondir+"gaussFitIcon.png"),"Fit Gaussian",self,checkable=True)
+        self.gaussFitAction=QAction(QIcon(icondir+"gaussFitIcon.png"),"Fit Gaussian (Ctrl+G)",self,checkable=True)
         self.gaussFitAction.triggered.connect(self.GaussFit)
+        self.gaussFitAction.setShortcut("Ctrl+G")
+        
+        self.gaussFitAction2=QAction(QIcon(icondir+"gaussFit2Icon.png"),"Fit Two Gaussians (Ctrl+Shift+G)",self,checkable=True)
+        self.gaussFitAction2.triggered.connect(self.GaussFit2)
+        self.gaussFitAction2.setShortcut("Ctrl+Shift+G")
 
 
         #Log-lin Scale option for toolbar
-        self.logScale=QAction(QIcon(icondir+"LogIcon.png"),"Log Scale",self,checkable=True)
+        self.logScale=QAction(QIcon(icondir+"LogIcon.png"),"Log Scale (Ctrl+L)",self,checkable=True)
         self.logScale.triggered.connect(self.LogScale)
+        self.logScale.setShortcut("Ctrl+L")
         
         #Create test data option for toolbar
-        self.testAction=QAction(QIcon(icondir+"TestIcon.png"),"Create Test Data",self)
+        self.testAction=QAction(QIcon(icondir+"TestIcon.png"),"Create Test Data 1 (Ctrl+T)",self)
         self.testAction.triggered.connect(self.TestData)
+        self.testAction.setShortcut("Ctrl+T")
+        
+        self.testAction2=QAction(QIcon(icondir+"Test2Icon.png"),"Create Test Data 2 (Ctrl+Shift+T)",self)
+        self.testAction2.triggered.connect(self.TestData2)
+        self.testAction2.setShortcut("Ctrl+Shift+T")
         
 
         #Creates toolbar and implements toolbar actions
@@ -153,7 +172,9 @@ class Spectrum(QMainWindow):
         toolBar.addAction(self.sumAction)
         toolBar.addAction(self.mcmcAction)
         toolBar.addAction(self.gaussFitAction)
+        toolBar.addAction(self.gaussFitAction2)
         toolBar.addAction(self.testAction)
+        toolBar.addAction(self.testAction2)
         
         toolBar.setIconSize(QtCore.QSize(40, 40))
 
@@ -244,10 +265,16 @@ class Spectrum(QMainWindow):
  
         
         
-        with np.warnings.catch_warnings():
-            np.warnings.simplefilter("ignore")
+       
+        
+        f = open("used_file_storage.txt","r")
+        usedFiles=[line.strip("\n").split("\t") for line in f.readlines()]
+        f.close()
+        
+        # with np.warnings.catch_warnings():
+        #     np.warnings.simplefilter("ignore")
     
-            usedFiles=np.loadtxt("used_file_storage.txt",dtype='str')
+        #     usedFiles=np.loadtxt("used_file_storage.txt",dtype='str')
         
         if len(usedFiles)>0:
         
@@ -504,6 +531,7 @@ Make sure file name contains no spaces""")
         
         self.mcmcAction.setEnabled(True)
         self.gaussFitAction.setEnabled(True)
+        self.gaussFitAction2.setEnabled(True)
         self.sumAction.setEnabled(True)
     
         
@@ -573,6 +601,31 @@ Make sure file name contains no spaces""")
             self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
             self.plt.addItem(self.plot)
             
+        if self.gaussFitAction2.isChecked()==True:
+            self.plt.clear()
+            
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            self.tabs.removeTab(1)
+            
+            
+            pen=pg.mkPen(color="k",width=1)
+            self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
+            self.plt.addItem(self.plot)
+            
 
             
     #Unchecks many of the tabs
@@ -582,6 +635,7 @@ Make sure file name contains no spaces""")
         self.backSelec.setChecked(False)
         self.mcmcAction.setChecked(False)
         self.gaussFitAction.setChecked(False)
+        self.gaussFitAction2.setChecked(False)
         
         self.dataWidget.append("""
 Viewing window cleared""")
@@ -1499,6 +1553,7 @@ Converted to Linear Scale""")
                 if self.sumAction.isChecked()==True or self.mcmcAction.isChecked()==True:
                     self.mcmcAction.setEnabled(True)
                     self.gaussFitAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     self.sumAction.setEnabled(True)
                     
                     
@@ -1531,6 +1586,7 @@ Converted to Linear Scale""")
                 
                     self.mcmcAction.setEnabled(True)
                     self.gaussFitAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     self.sumAction.setEnabled(True)
               
                     pen=pg.mkPen(color="k",width=1)
@@ -1556,6 +1612,49 @@ Converted to Linear Scale""")
                     
                     self.plt.scene().sigMouseClicked.connect(self.PeakClick)
                     
+                    
+                elif self.gaussFitAction2.isChecked()==True:
+                    self.plt.scene().sigMouseClicked.disconnect(self.PeakClick)
+                    
+                    
+                
+                    self.mcmcAction.setEnabled(True)
+                    self.gaussFitAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+              
+                    pen=pg.mkPen(color="k",width=1)
+                    self.plt.clear()
+                    self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
+                    self.plt.addItem(self.plot)
+                    
+            
+                
+        
+   
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                     
+                    self.backSelec.setChecked(False)
+                    self.gaussFitAction2.setChecked(False)
+                    
+                    self.plt.scene().sigMouseClicked.connect(self.PeakClick)    
+                    
+                
                 if self.backSelec.isChecked==True:
                     try:
                  
@@ -1683,6 +1782,7 @@ Upload file first""")
         
                     self.mcmcAction.setEnabled(True)
                     self.gaussFitAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     self.sumAction.setEnabled(True)
                     
                     self.plt.removeItem(self.totalfill)
@@ -1734,6 +1834,7 @@ Upload file first""")
 
                 self.mcmcAction.setEnabled(True)
                 self.gaussFitAction.setEnabled(True)
+                self.gaussFitAction2.setEnabled(True)
                 self.sumAction.setEnabled(True)
                     
                 self.tabs.removeTab(1)
@@ -1750,6 +1851,54 @@ Upload file first""")
                 self.peakSelect.setChecked(True)
                 self.backSelec.setChecked(True)
                 self.gaussFitAction.setChecked(False)
+                
+                
+                
+            elif "gaussFit2" in names:
+    
+
+                pen=pg.mkPen(color="k",width=1)
+                
+                
+                self.plt.clear()
+                self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
+                self.plt.addItem(self.plot)
+              
+                
+                self.plt.addItem(self.peakReg)
+   
+    
+
+                self.mcmcAction.setEnabled(True)
+                self.gaussFitAction.setEnabled(True)
+                self.gaussFitAction2.setEnabled(True)
+                self.sumAction.setEnabled(True)
+                    
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+                self.tabs.removeTab(1)
+
+                
+                self.peakSelect.setChecked(True)
+                self.backSelec.setChecked(True)
+
+                self.gaussFitAction2.setChecked(False)
+             
+                
+             
                 
             else:
                 self.dataWidget.append(
@@ -1956,12 +2105,15 @@ Select peak first!""")
                 self.gaussFitAction.setChecked(False)
                 self.sumAction.setChecked(False)
             
-        
+            if self.gaussFitAction2.isChecked()==True:
+                self.gaussFitAction2.setChecked(False)
+                self.sumAction.setChecked(False)
             
             
             if self.peakSelect.isChecked()==True:
                 self.mcmcAction.setEnabled(False)
                 self.gaussFitAction.setEnabled(False)
+                self.gaussFitAction2.setEnabled(False)
                 self.backUsed=0
                 self.plt.removeItem(self.peakReg)
                 
@@ -2175,6 +2327,7 @@ Centroid= """+str(self.x_mean)+" +/- " + str(self.standerr))
                     
                     self.mcmcAction.setEnabled(True)
                     self.gaussFitAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     self.plt.removeItem(self.totalfill)
                     self.peakReg.setRegion((self.xmin,self.xmax))
                     self.plt.addItem(self.peakReg)
@@ -2212,6 +2365,7 @@ Centroid= """+str(self.x_mean)+" +/- " + str(self.standerr))
     
                 self.mcmcAction.setEnabled(True)
                 self.gaussFitAction.setEnabled(True)
+                self.gaussFitAction2.setEnabled(True)
                 self.peakSelect.setChecked(True)
                 
 
@@ -2251,6 +2405,7 @@ Select peak and background first!""")
             if self.backSelec.isChecked()==True:
 
                 self.gaussFitAction.setEnabled(False)
+                self.gaussFitAction2.setEnabled(False)
                 self.sumAction.setEnabled(False)
                     
                 paraWidget=QDialog()
@@ -2269,7 +2424,7 @@ Select peak and background first!""")
                 
                 
                 
-                self.buttonGroup = QtGui.QButtonGroup()
+                self.buttonGroup = QtWidgets.QButtonGroup()
                 
                 
                 self.tnProb=QCheckBox("")
@@ -2308,6 +2463,7 @@ Select peak and background first!""")
                 if sample_size.text()=="" and burnin.text()=="" and chain_numbers.text()=="":
                     self.mcmcAction.setChecked(False)
                     self.gaussFitAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     self.sumAction.setEnabled(True)
                     self.dataWidget.append(
 """
@@ -2501,11 +2657,7 @@ Running Bayesian MCMC...""")
                 backCounts=obs_bkg
         
          
-                self.dataWidget.append(
-"""
-Running Bayesian MCMC...""")
-                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
-                
+
                 
                 #I accidentally wrote all of the preceeding code with an extra 
                 #indentation and I didn't want to go through and correct it 
@@ -3417,6 +3569,7 @@ Signal Counts Percentiles: """+
             
 
                 self.gaussFitAction.setEnabled(True)
+                self.gaussFitAction2.setEnabled(True)
                 self.sumAction.setEnabled(True)
    
                 self.tabs.removeTab(1)
@@ -3537,6 +3690,7 @@ Select peak and background first!""")
                 
     
                 self.mcmcAction.setEnabled(False)
+                self.gaussFitAction2.setEnabled(False)
                 self.sumAction.setEnabled(False)
                 
                 
@@ -3596,6 +3750,7 @@ Select peak and background first!""")
                     self.gaussFitAction.setChecked(False)
                     self.mcmcAction.setEnabled(True)
                     self.sumAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     self.dataWidget.append(
 """
 No parameters selected""")
@@ -3678,7 +3833,7 @@ lastChan<-lastChan
 
 
 widthEst<-wEst
-heightEst<-median(obstot)
+heightEst<-max(obstot)
 centEst<-mean(xchann)
 slopeEst<-(mean(obsbkg2)-mean(obsbkg1))/(mean(xchann2)-mean(xchann1))
 yIntEst <- mean(obsbkg1)-slopeEst*mean(xchann1)
@@ -3826,7 +3981,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                 thin=int(len(trace[0])/2000)
             
             
-                gaussThin=int(len(trace[0])/800)
+                gaussThin=int(len(trace[0])/100)
                
                 
             #When log scale is on, it takes tremendously longer to generate the 
@@ -4200,6 +4355,7 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
         
                     self.mcmcAction.setEnabled(True)
                     self.sumAction.setEnabled(True)
+                    self.gaussFitAction2.setEnabled(True)
                     
                     
                     pen=pg.mkPen(color="k",width=1)
@@ -4235,6 +4391,1061 @@ Signal Counts= """+str(sigPers[2])+" + "+str(sigPers[3]-sigPers[2])+"/- "+str(si
                 
 
                 
+
+    def GaussFit2(self):
+        if self.gaussFitAction2.isChecked()==True:
+            
+            if self.backSelec.isChecked()==False:
+                self.dataWidget.append(
+"""
+Select peak and background first!""")
+                self.gaussFitAction2.setChecked(False)
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+            
+            
+            if self.backSelec.isChecked()==True:
+                
+                
+                
+                self.gaussFitAction.setEnabled(False)
+                self.mcmcAction.setEnabled(False)
+                self.sumAction.setEnabled(False)
+                
+                
+                self.sigmaS=False
+                self.sigmaP=False
+                
+                
+                self.fitWidget=QDialog()
+                self.staticSigma=QRadioButton("")
+                self.paramSigma=QRadioButton("")
+                
+                self.sigma=QLineEdit(self.fitWidget)
+                self.mu=QLineEdit(self.fitWidget)
+                
+                self.paramSigma.toggled.connect(self.fitRadioButtonClick)
+                self.paramSigma.setChecked(True)
+                
+                self.staticSigma.toggled.connect(self.fitRadioButtonClick)
+                self.staticSigma.setChecked(False)
+                
+                
+                sampleSize=QLineEdit(self.fitWidget)
+                burn=QLineEdit(self.fitWidget)
+                chains=QLineEdit(self.fitWidget)
+                self.sigma.setEnabled(False)
+                self.mu.setEnabled(False)
+                
+                
+                self.gaussProb_x1 = QLineEdit(self.fitWidget)
+                self.gaussProb_x2=QLineEdit(self.fitWidget)
+                empty_string=QLabel(self.fitWidget)
+                title=QLabel(self.fitWidget)
+                
+                empty_string=QLabel(self.fitWidget)
+                title=QLabel(self.fitWidget)
+                
+                
+                
+                buttonBox= QDialogButtonBox(QDialogButtonBox.Ok, self)
+                layout= QFormLayout(self.fitWidget)
+                layout.addRow("Sample size: ", sampleSize)
+                layout.addRow("Burn-in: ", burn)
+                layout.addRow("Chains: ",chains)
+                layout.addRow("Non-informative sigma",self.paramSigma)
+                layout.addRow("Informative sigma",self.staticSigma)
+                layout.addRow("Peak Standard Deviation: ",self.mu)
+                layout.addRow("Error: ",self.sigma)
+                layout.addRow("",empty_string)
+                layout.addRow("Calculate Probability of Signal Between:",title)
+                layout.addRow("Value 1: ",self.gaussProb_x1)
+                layout.addRow("Value 2: ",self.gaussProb_x2)
+         
+                
+                layout.addWidget(buttonBox)
+                buttonBox.accepted.connect(self.fitWidget.accept)
+                
+                self.fitWidget.exec()
+                
+                
+                self.paramWidget=QDialog()
+             
+                title=QLabel(self.paramWidget)
+                
+                
+                a1 = QLineEdit(self.paramWidget)
+                a2 = QLineEdit(self.paramWidget)
+                b1 = QLineEdit(self.paramWidget)
+                b2 = QLineEdit(self.paramWidget)
+            
+                
+              #  buttonBox= QDialogButtonBox(QDialogButtonBox.Ok, self)
+                layout= QFormLayout(self.paramWidget)
+                layout.addRow("SET INITIAL VALUES",title)
+                layout.addRow("If a value isn't known, leave blank",title)
+                layout.addRow("Gaussian 1 height: ", a1)
+                layout.addRow("Gaussian 2 height: ", a2)
+                layout.addRow("Gaussian 1 centroid: ",b1)
+                layout.addRow("Gaussian 2 centroid: ",b2)
+                
+                if self.sigmaP==True:
+                    c1 = QLineEdit(self.paramWidget)
+                    c2 = QLineEdit(self.paramWidget)
+                    layout.addRow("Gaussian 1 sigma",c1)
+                    layout.addRow("Gaussian 2 sigma",c2)
+                
+                layout.addWidget(buttonBox)
+                buttonBox.accepted.connect(self.paramWidget.accept)
+                
+                self.paramWidget.exec()
+    
+                
+                
+                if sampleSize.text()=="" and burn.text()=="" and chains.text()=="":
+                    self.gaussFitAction.setChecked(False)
+                    self.mcmcAction.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+                    self.dataWidget.append(
+"""
+No parameters selected""")
+                    self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+                    return    
+            
+                if sampleSize.text()=="":
+                    samples=2000
+                if sampleSize.text()!="":
+                    samples=int(sampleSize.text())
+                if burn.text()=="":
+                    tune=1500
+                if burn.text()!="":
+                    tune=int(burn.text())
+                if chains.text()=="":
+                    chainNum=2
+                if chains.text()!="":
+                    chainNum=int(chains.text())
+                
+            
+                max_chan=max(self.peakx)
+
+                peakXRange=self.peakx
+                peakCounts=np.array([int(round(y)) for y in self.peaky])
+        
+                back1Chans=self.x1range
+                back1Counts=np.array([int(round(b1)) for b1 in self.reg1yrange])
+                back2Chans=self.x2range
+                back2Counts=np.array([int(round(b2)) for b2 in self.reg2yrange])
+                firstChan=self.peakx[0]
+                lastChan=self.peakx[-1]
+                
+                if self.sigmaS==True:
+                    mean1 =float(self.mu.text())
+                    std1 =float(self.sigma.text())
+                    wEst1 = mean1
+                    
+                    mean2 = mean1
+                    std2 = std1
+                    wEst2 = wEst1
+              
+                    
+                if self.sigmaP==True:
+                    mean1=.01
+                    mean2 = mean1
+                    
+                    std1=1000
+                   
+         
+                    std2 = std1
+                    
+                    wEst1 = c1.text()
+                    if wEst1 == "":
+                        wEst1 = (self.peakx[-1]-self.peakx[0])/2
+                        
+                    wEst2= c2.text()
+                    if wEst2 == "":
+                        wEst2 = wEst1
+                    
+                hInit1 = a1.text()
+                if hInit1 == "":
+                    hInit1 == np.max(peakCounts)
+                    
+                
+                hInit2 = a2.text()
+                if hInit2 == "":
+                    hInit2 == np.max(peakCounts)
+                    
+                cInit1 = b1.text()
+                if cInit1 == "":
+                    cInit1 == peakXRange[0]
+                    
+                cInit2 = b2.text()
+                if cInit2 == "":
+                    cInit2 == peakXRange[-1]
+        
+                hInit1 = int(hInit1)
+                hInit2 = int(hInit2)
+                cInit1 = int(cInit1)
+                cInit2 = int(cInit2)
+                wEst1 = int(wEst1)
+                wEst2 = int(wEst2)
+                
+                
+                self.dataWidget.append(
+"""
+Running Double Gaussian Fitting MCMC...""")
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End) 
+                
+                
+        
+                r_string="""
+  function(peakXRange,hInit1,hInit2,cInit1,cInit2,wEst1,wEst2,peakCounts,back1Chans,back1Counts,back2Chans,back2Counts,mean1,mean2,std1,std2,samples,tune,chainNum,firstChan,lastChan){
+   
+        library("rjags")
+        load.module("glm")
+ 
+xchann <- c(peakXRange)	
+
+obstot <- c(peakCounts)
+
+mean1 <- mean1
+
+std1 <- std1
+
+mean2 <- mean2
+std2 <- std2
+
+ 
+xchann1 <- c(back1Chans)	
+
+obsbkg1 <- c(back1Counts)
+
+
+# data for right background region
+
+xchann2 <- c(back2Chans)	
+
+obsbkg2 <- c(back2Counts)
+
+firstChan<-firstChan
+lastChan<-lastChan
+
+
+widthEst1 <- wEst1
+widthEst2 <- wEst2
+heightEst1 <- hInit1
+heightEst2 <- hInit2
+# centEst1<-mean(xchann)-length(xchann)/3
+# centEst2<-mean(xchann)+length(xchann)/3
+
+centEst1<-cInit1
+centEst2<-cInit2
+slopeEst<-(mean(obsbkg2)-mean(obsbkg1))/(mean(xchann2)-mean(xchann1))
+yIntEst <- mean(obsbkg1)-slopeEst*mean(xchann1)
+
+
+######################################################################                  
+# JAGS MODEL
+######################################################################                 
+# rjags ----->
+cat('model {
+
+
+
+for ( i in 1 : length(xchann1) ) {
+  obsbkg1[i] ~ dpois(zbkg1[i])  
+# background linear model
+  zbkg1[i] <- d * xchann1[i] + e
+}
+
+# left background region
+for ( i in 1 : length(xchann2) ) {
+  obsbkg2[i] ~ dpois(zbkg2[i])  
+# background linear model
+  zbkg2[i] <- d * xchann2[i] + e
+}
+
+# peak region
+for ( i in 1 : length(xchann) ) {
+  obstot[i] ~ dpois(zsig[i] + zbkg[i])
+
+  zsig[i] <- a1 * exp( - ((xchann[i] - b1)^2) /(2 * c1^2) ) +a2 * exp( - ((xchann[i] - b2)^2) /(2 * c2^2) ) 
+# background linear model
+  zbkg[i] <- d* xchann[i] + e
+}
+
+######################################
+#
+# PRIORS
+#
+######################################
+
+
+
+
+# half-normal prior
+  a1 ~ dnorm(0.0, pow(1000, -2))T(0,)
+  a2 ~ dnorm(0.0, pow(1000, -2))T(0,)
+  b1 ~ dunif(firstChan,lastChan)
+  
+  # b1 is set at the lower bound to ensure b2 (and thus a2 and c2) are associated 
+  # with the rightmost peak
+  b2 ~ dunif(b1,lastChan)
+  
+
+  c1 ~dnorm(mean1,pow(std1,-2))T(0,)
+  #c2 ~dnorm(mean2,pow(std2,-3))T(0,)
+ c2 ~dnorm(c1,pow(std2,-2))T(0,)
+  d ~ dnorm(0.0, pow(1000, -2))
+  e ~ dnorm(0.0, pow(1000, -2))
+
+}', file={f <- tempfile()})  
+
+
+
+n.chains <- chainNum
+n.adapt  <- tune   
+n.burn   <- tune 
+n.iter   <- samples  
+thin     <- 1
+
+
+
+ourmodel <- jags.model(f, data = list(
+                  xchann = xchann,
+                 xchann1 = xchann1,
+                 xchann2 = xchann2,
+			   obstot = obstot, 
+			  obsbkg1 = obsbkg1,
+			  obsbkg2 = obsbkg2,
+              mean1=mean1,
+              mean2=mean2,
+              std1=std1,
+              std2=std2,
+              firstChan=firstChan,
+              lastChan=lastChan
+							  ),
+
+               inits = list(a1 = heightEst1, a2 = heightEst2, b1 = centEst1, b2 = centEst2, c1 = widthEst1, c2=widthEst2, d = slopeEst, e = yIntEst),
+               n.chains = n.chains, n.adapt = n.adapt, quiet=TRUE)
+  
+update(ourmodel, n.burn)
+
+
+mcmcChain <- coda.samples(ourmodel, 
+			  variable.names=c(
+			       'a1', 'a2', 'b1', 'b2', 'c1', 'c2', 'd','e'
+			                  ),
+                   n.iter=n.iter, thin)
+samplesmat = as.matrix(mcmcChain)
+
+return(samplesmat)
+    }
+"""
+    
+    
+       
+                
+       
+                
+                rfunc=robjects.r(r_string)
+                trace=np.array(rfunc(peakXRange,hInit1,hInit2,cInit1,cInit2,wEst1,wEst2,peakCounts,back1Chans,back1Counts,back2Chans,back2Counts,mean1,mean2,std1,std2,samples,tune,chainNum,firstChan,lastChan))
+				
+                
+                trace=np.transpose(trace) 
+                
+                heights1=np.array(trace[0])
+                cents1=np.array(trace[2])
+                widths1=np.array(trace[4])
+                                              
+                
+                centPers1=np.percentile(cents1,[2.5,16,50,84,97.4])
+                                                                  
+                
+                const=((2*np.pi)**(1/2))
+                sigCounts1=const*heights1*widths1
+                sigPers1=np.percentile(sigCounts1,[2.5,16,50,84,97.4])
+                
+                heightPers1=np.percentile(heights1,[2.5,16,50,84,97.4])
+                sigmaVals1=np.percentile(widths1,[2.5,16,50,84,97.4])
+                
+                centroid1=centPers1[2]
+                upperC1=centPers1[3]-centroid1
+                lowerC1=centroid1-centPers1[1]
+                
+         
+            
+                heights2=np.array(trace[1])
+                cents2=np.array(trace[3])
+                widths2=np.array(trace[5])
+                                              
+                
+                centPers2=np.percentile(cents2,[2.5,16,50,84,97.4])
+                                                                  
+            
+                sigCounts2=const*heights2*widths2
+                sigPers2=np.percentile(sigCounts2,[2.5,16,50,84,97.4])
+                
+                heightPers2=np.percentile(heights2,[2.5,16,50,84,97.4])
+                sigmaVals2=np.percentile(widths2,[2.5,16,50,84,97.4])
+                
+                centroid2=centPers2[2]
+                upperC2=centPers2[3]-centroid2
+                lowerC2=centroid2-centPers2[1]
+       
+                self.dataWidget.append("""<br> <u>GAUSSIAN FIT<u>""")
+                
+                self.dataWidget.append("""Parameters: Sample Size= """+str(samples)+"\t Burn= "+str(tune)+"     Chains= "+str(chainNum)+
+"""
+Peak Channel Range= """+str(int(self.peakx[0]))+" to " + str(int(self.peakx[-1]) )+
+"""
+Height 1= """+str(heightPers1[2])+" + "+str(heightPers1[3]-heightPers1[2])+"/- "+str(heightPers1[2]-heightPers1[1])+
+"""
+Height 2= """+str(heightPers2[2])+" + "+str(heightPers2[3]-heightPers2[2])+"/- "+str(heightPers2[2]-heightPers2[1])+
+"""
+Sigma 1= """+str(sigmaVals1[2])+" + "+str(sigmaVals1[3]-sigmaVals1[2])+"/- "+str(sigmaVals1[2]-sigmaVals1[1])+
+"""
+Sigma 2= """+str(sigmaVals2[2])+" + "+str(sigmaVals2[3]-sigmaVals2[2])+"/- "+str(sigmaVals2[2]-sigmaVals2[1])+
+"""
+Centroid 1= """+str(centroid1)+" + "+str(upperC1)+"/- "+str(lowerC1)+
+"""
+Centroid 2= """+str(centroid2)+" + "+str(upperC2)+"/- "+str(lowerC2)+
+"""
+Signal Counts 1= """+str(sigPers1[2])+" + "+str(sigPers1[3]-sigPers1[2])+"/- "+str(sigPers1[2]-sigPers1[1])+
+"""
+Signal Counts 2= """+str(sigPers2[2])+" + "+str(sigPers2[3]-sigPers2[2])+"/- "+str(sigPers2[2]-sigPers2[1]))
+                
+                self.dataWidget.moveCursor(QtGui.QTextCursor.End)                       
+   
+                ##Reduces the number of traces drawn for performance 
+                #enhancing reasons 
+                thin=int(len(trace[0])/2000)
+            
+            
+                gaussThin=int(len(trace[0])/100)
+               
+                
+            #When log scale is on, it takes tremendously longer to generate the 
+            #Gaussian plots for some reason
+            
+                if self.logScale.isChecked()==True:
+                    thin=int(len(trace[0])/100)
+                
+                
+                if thin==0:
+                    thin=1
+                if gaussThin==0:
+                    gaussThin=1
+                    
+                gaussXVals = np.linspace(int(self.x1range[0]), int(self.x2range[-1]), int(self.x2range[-1]-self.x1range[0]))
+                
+             
+                for i in range(0,len(trace[0]),gaussThin):
+                    height1=trace[0][i]
+                    cent1=trace[2][i]
+
+                    width1=float(trace[4][i])
+
+                    height2=trace[1][i]
+                    cent2=trace[3][i]
+
+                    width2=float(trace[5][i])
+                    
+                    x_vals=gaussXVals
+                    y_vals=[]
+                    
+                    
+                    y= (height1 * np.exp(-((x_vals - cent1)**2 / (2 * width1**2)))) + (height2 * np.exp(-((x_vals - cent2)**2 / (2 * width2**2))))
+                
+                    #Calculates the linear background for that particular iteration
+                    #based on the posterior 
+                    
+                    background=trace[6][i]*x_vals+trace[7][i]
+                
+                    #Adds this background to each y value
+                    y_vals=y+background
+                    
+                
+                    pen=pg.mkPen(color="r",width=1)
+                    
+                    self.plt.plot(x_vals,y_vals,pen=pen,name="gaussFit2")
+               
+                colors=["b","r","g","c","m","y","k"]
+          
+               
+                regXRange=list(range(int(round(self.x1range[0])),int(round(self.x2range[-1]))+1))
+            
+                regYRange=self.y[int(regXRange[0]-self.x[0]):int(regXRange[-1]-self.x[0])+1]
+               
+                regXRange.append(regXRange[-1]+1)
+                regXRange=np.array(regXRange)
+                highlightPen=pg.mkPen(color="b",width=1,alpha=100)
+               
+                
+                self.plt.plot(Spectrum.HistShift(regXRange),regYRange,pen=highlightPen,stepMode="center",name="regionHighlight")
+                
+                
+                
+                
+                
+                for i in range(chainNum):
+                    if i>=len(colors):
+                        colors.append(colors[i-7])
+                    if i==len(colors):
+                        colors.append("b")
+                    if i==(chainNum)-1:
+                            colors.append(colors[i-6])
+                
+                signalPos=pg.PlotWidget()
+                signalPos.addLegend()
+                    
+             
+                sigVals=[]
+                for i in range(chainNum):
+                    start=int(round(i*len(sigCounts1)/chainNum))
+                    stop=int(round((i+1)*len(sigCounts1)/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(sigCounts1)/chainNum))-1
+                    
+                    sig_val=sigCounts1[start:stop]
+                   
+                    sigVals.append([sig_val])
+
+          
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(sigVals[i][0]),np.amax(sigVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(sigVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    signalPos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                
+                
+             
+                
+                self.signalPosTab=signalPos
+                signalPos.setMouseEnabled(x=False,y=False)
+                
+                self.tabs.addTab(self.signalPosTab,"Signal 1 Count Posterior")
+
+                
+                signal_traces=pg.PlotWidget()
+                signal_traces.addLegend()
+                signal_traces.setMouseEnabled(x=False,y=False)
+                
+             
+                
+                for i in range(chainNum):
+                    x=range(0,len(sigVals[0][0]),thin)
+                    y=sigVals[i][0]
+                    y=y[::thin]
+
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    signal_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.sigTraceTab=signal_traces
+                self.tabs.addTab(self.sigTraceTab,"Signal 1 Count Traces")    
+                
+                
+                      
+                
+                signal2Pos=pg.PlotWidget()
+                signal2Pos.addLegend()
+                    
+        
+                sigVals=[]
+                for i in range(chainNum):
+                    start=int(round(i*len(sigCounts1)/chainNum))
+                    stop=int(round((i+1)*len(sigCounts1)/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(sigCounts1)/chainNum))-1
+                    
+                    sig_val=sigCounts2[start:stop]
+                   
+                    sigVals.append([sig_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(sigVals[i][0]),np.amax(sigVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(sigVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    signal2Pos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                        
+                
+                self.signal2PosTab=signal2Pos
+                signal2Pos.setMouseEnabled(x=False,y=False)
+                
+                self.tabs.addTab(self.signal2PosTab,"Signal 2 Count Posterior")
+                     
+                
+                signal2_traces=pg.PlotWidget()
+                signal2_traces.addLegend()
+                signal2_traces.setMouseEnabled(x=False,y=False)
+                
+             
+                
+                for i in range(chainNum):
+                    x=range(0,len(sigVals[0][0]),thin)
+                    y=sigVals[i][0]
+                    y=y[::thin]
+
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    signal2_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.sig2TraceTab=signal2_traces
+                self.tabs.addTab(self.sig2TraceTab,"Signal 2 Count Traces") 
+                
+               
+                
+                
+                a1Pos=pg.PlotWidget()
+                a1Pos.addLegend()
+                    
+             
+                aVals=[]
+                for i in range(chainNum):
+                    start=int(round(i*len(trace[0])/chainNum))
+                    stop=int(round((i+1)*len(trace[0])/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(trace[0])/chainNum))-1
+                    
+                    a_val=trace[0][start:stop]
+                   
+                    aVals.append([a_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(aVals[i][0]),np.amax(aVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(aVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    a1Pos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.a1PosTab=a1Pos
+                a1Pos.setMouseEnabled(x=False,y=False)
+                        
+                self.tabs.addTab(self.a1PosTab,"Gaussian 1 Height Posterior")
+                     
+                
+                a1_traces=pg.PlotWidget()
+                a1_traces.addLegend()
+                a1_traces.setMouseEnabled(x=False,y=False)
+                
+             
+                
+                for i in range(chainNum):
+                    x=range(0,len(aVals[0][0]),thin)
+                    y=aVals[i][0]
+                    y=y[::thin]
+
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    a1_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.a1TraceTab=a1_traces
+                self.tabs.addTab(self.a1TraceTab,"Gaussian 1 Height Traces")
+                
+                
+                  
+                
+                a2Pos=pg.PlotWidget()
+                a2Pos.addLegend()
+                    
+             
+                aVals=[]
+                for i in range(chainNum):
+                    start=int(round(i*len(trace[0])/chainNum))
+                    stop=int(round((i+1)*len(trace[0])/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(trace[0])/chainNum))-1
+                    
+                    a_val=trace[1][start:stop]
+                   
+                    aVals.append([a_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(aVals[i][0]),np.amax(aVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(aVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    a2Pos.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.a2PosTab=a2Pos
+                a2Pos.setMouseEnabled(x=False,y=False)
+                        
+                self.tabs.addTab(self.a2PosTab,"Gaussian 2 Height Posterior")
+                     
+                
+                a2_traces=pg.PlotWidget()
+                a2_traces.addLegend()
+                a2_traces.setMouseEnabled(x=False,y=False)
+                
+             
+                
+                for i in range(chainNum):
+                    x=range(0,len(aVals[0][0]),thin)
+                    y=aVals[i][0]
+                    y=y[::thin]
+
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    a2_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.a2TraceTab=a1_traces
+                self.tabs.addTab(self.a2TraceTab,"Gaussian 2 Height Traces")
+                
+                b1PosPlt=pg.PlotWidget()
+                b1PosPlt.addLegend
+                b1PosPlt.setMouseEnabled(x=False,y=False)
+                
+                bVals=[]
+                for i in range(chainNum):
+                    start=int(round(i*len(trace[1])/chainNum))
+                    stop=int(round((i+1)*len(trace[1])/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(trace[1])/chainNum))-1
+                    
+                    b_val=trace[2][start:stop]
+                    bVals.append([b_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(bVals[i][0]),np.amax(bVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(bVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    b1PosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+               
+                
+                self.b1PosTab=b1PosPlt
+                        
+                self.tabs.addTab(self.b1PosTab,"Gaussian 1 Centroid Posterior")
+                     
+                
+                b1_traces=pg.PlotWidget()
+                b1_traces.addLegend()
+                b1_traces.setMouseEnabled(x=False,y=False)
+                
+                for i in range(chainNum):
+                    x=range(0,len(bVals[0][0]),thin)
+                    y=bVals[i][0]
+                    y=y[::thin]
+    
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    b1_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                
+                self.b1TraceTab=b1_traces
+                self.tabs.addTab(self.b1TraceTab,"Gaussian 1 Centroid Traces")
+                
+                
+                
+                b2PosPlt=pg.PlotWidget()
+                b2PosPlt.addLegend
+                b2PosPlt.setMouseEnabled(x=False,y=False)
+                
+                bVals=[]
+                for i in range(chainNum):
+                    start=int(round(i*len(trace[1])/chainNum))
+                    stop=int(round((i+1)*len(trace[1])/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(trace[1])/chainNum))-1
+                    
+                    b_val=trace[3][start:stop]
+                    bVals.append([b_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(bVals[i][0]),np.amax(bVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(bVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    b2PosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+               
+                
+                self.b2PosTab=b2PosPlt
+                        
+                self.tabs.addTab(self.b2PosTab,"Gaussian 2 Centroid Posterior")
+                     
+                
+                b2_traces=pg.PlotWidget()
+                b2_traces.addLegend()
+                b2_traces.setMouseEnabled(x=False,y=False)
+                
+                for i in range(chainNum):
+                    x=range(0,len(bVals[0][0]),thin)
+                    y=bVals[i][0]
+                    y=y[::thin]
+    
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    b2_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                
+                self.b2TraceTab=b2_traces
+                self.tabs.addTab(self.b2TraceTab,"Gaussian 2 Centroid Traces")
+                
+               
+                
+                
+                c1PosPlt=pg.PlotWidget()
+                cVals=[]
+                c1PosPlt.setMouseEnabled(x=False,y=False)
+                
+                for i in range(chainNum):
+                    start=int(round(i*len(trace[2])/chainNum))
+                    stop=int(round((i+1)*len(trace[2])/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(trace[2])/chainNum))-1
+                    
+                    c_val=trace[4][start:stop]
+                    cVals.append([c_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(cVals[i][0]),np.amax(cVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(cVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    c1PosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.c1PosTab=c1PosPlt
+                        
+                self.tabs.addTab(self.c1PosTab,"Gaussian 1 Sigma Posterior")
+                     
+                
+                c1_traces=pg.PlotWidget()
+                c1_traces.addLegend()
+                c1_traces.setMouseEnabled(x=False,y=False)
+                
+                for i in range(chainNum):
+                    x=range(0,len(cVals[0][0]),thin)
+                    y=cVals[i][0]
+                    y=y[::thin]
+
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    c1_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.c1TraceTab=c1_traces
+                self.tabs.addTab(self.c1TraceTab,"Gaussian 1 Sigma Traces")
+                
+                
+                
+                
+                c2PosPlt=pg.PlotWidget()
+                cVals=[]
+                c2PosPlt.setMouseEnabled(x=False,y=False)
+                
+                for i in range(chainNum):
+                    start=int(round(i*len(trace[2])/chainNum))
+                    stop=int(round((i+1)*len(trace[2])/chainNum))
+                    
+                    if i==chainNum-1:
+                         stop=int(round((i+1)*len(trace[2])/chainNum))-1
+                    
+                    c_val=trace[4][start:stop]
+                    cVals.append([c_val])
+
+                    
+                for i in range(chainNum):
+                   
+                    #Returns the first and last value from the list containing the 
+                    #data from each chain
+                    chainmin,chainmax=np.amin(cVals[i][0]),np.amax(cVals[i][0])
+                    
+                    #Creates 200 x values ranging from the first value to the last value
+                    x_smooth=np.linspace(chainmin,chainmax,100)
+                    
+                    #Runs a KDE on the net counts at each x value
+                    y_smooth=sp.stats.gaussian_kde(cVals[i])(x_smooth)
+                    
+                    pen=pg.mkPen(color=colors[i],width=1)
+                    
+                    #Plots the smoothed curve 
+                    c2PosPlt.plot(x_smooth,y_smooth,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.c2PosTab=c2PosPlt
+                        
+                self.tabs.addTab(self.c2PosTab,"Gaussian 2 Sigma Posterior")
+                     
+                
+                c2_traces=pg.PlotWidget()
+                c2_traces.addLegend()
+                c2_traces.setMouseEnabled(x=False,y=False)
+                
+                for i in range(chainNum):
+                    x=range(0,len(cVals[0][0]),thin)
+                    y=cVals[i][0]
+                    y=y[::thin]
+
+                    color=pg.intColor(2*i+1, hues=9, values=1, maxValue=255, minValue=150, maxHue=360, minHue=0, sat=255, alpha=150)
+                    pen=pg.mkPen(color=color,width=1)
+                    c2_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
+                
+                self.c2TraceTab=c2_traces
+                self.tabs.addTab(self.c2TraceTab,"Gaussian 2 Sigma Traces")
+                
+               
+                self.plt.removeItem(self.backReg1)
+                self.plt.removeItem(self.backReg2)
+                self.plt.removeItem(self.peakReg)
+                    
+                self.peakSelect.setChecked(False)
+                self.backSelec.setChecked(False)
+                 
+                
+                
+                
+                try:
+                    minChan=int(self.gaussProb_x1.text())
+                    maxChan=int(self.gaussProb_x2.text())
+                    
+                    Spectrum.Prob(self,[minChan,maxChan],sigCounts,"Gaussian Fit")
+                except:
+                    if self.gaussProb_x1.text()=="" and self.gaussProb_x2.text()=="":
+                        pass
+                    else:
+                        self.dataWidget.append("Invalid channel region chosen for probability calculation")
+                        self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+               
+           
+        if self.gaussFitAction2.isChecked()==False:
+            
+            if self.gaussFitAction2.isChecked()==False:
+                names=[item.name() for item in self.plt.listDataItems()]
+               
+                if "gaussFit2" in names:
+                    
+              
+        
+                    self.mcmcAction.setEnabled(True)
+                    self.sumAction.setEnabled(True)
+                    self.gaussFitAction.setEnabled(True)
+                    
+                    
+                    pen=pg.mkPen(color="k",width=1)
+                    self.plt.clear()
+                    self.plot.setData(self.histX, self.y,pen=pen,stepMode="center")
+                    self.plt.addItem(self.plot)
+                    
+                    self.peakReg.setRegion((self.xmin,self.xmax))
+                    self.plt.addItem(self.peakReg)
+            
+                
+        
+   
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                    self.tabs.removeTab(1)
+                     
+                    self.peakSelect.setChecked(True)
+                    
+                    self.backReg1.setRegion((self.reg1xmin,self.reg1xmax))
+                    self.backReg2.setRegion((self.reg2xmin,self.reg2xmax))
+                    self.plt.addItem(self.backReg1)
+                    self.plt.addItem(self.backReg2)
+                    self.backSelec.setChecked(True)
+
+
+
+        
 
             
             
@@ -4402,7 +5613,7 @@ Set parameters for test data.""")
         self.test_centroid=np.sum(test_mean)/(np.sum(counts))
         
             
-        self.netSumUnc=(np.sum(peak_counts)+np.sum(peak_bkg))**(1/2)
+        self.netSumUnc=(np.sum(peak_counts))**(1/2)
 
 
         x_squared=(channels-self.test_centroid)**2
@@ -4461,6 +5672,314 @@ Seed Used= """+str(self.seed))
                 f.write((parameter_types[i]+"= %s\r\n" % (str(test_data_values[i]))))
         f.close()   
         
+        
+        
+        
+        
+    def TestData2(self):
+        #Creates the window for altering the test data
+        testWidget=QDialog()
+      
+        sample_size1 = QLineEdit(testWidget)
+        sample_size2 = QLineEdit(testWidget)
+        peak_location1= QLineEdit(testWidget)
+        peak_location2= QLineEdit(testWidget)
+        gauss_width1=QLineEdit(testWidget)
+        gauss_width2=QLineEdit(testWidget)
+        bkg_counts=QLineEdit(testWidget)
+        min_chan=QLineEdit(testWidget)
+        max_chan=QLineEdit(testWidget)
+        setSeed=QLineEdit(testWidget)
+        
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok, self)
+        layout = QFormLayout(testWidget)
+        layout.addRow("Sample Size for Peak 1: ", sample_size1)
+        layout.addRow("Sample Size for Peak 2: ", sample_size2)
+        layout.addRow("Location of Peak 1: ", peak_location1)
+        layout.addRow("Location of Peak 2: ", peak_location2)
+        layout.addRow("Width of Gaussian 1: ",gauss_width1)
+        layout.addRow("Width of Gaussian 2: ",gauss_width2)
+        layout.addRow("Number of Background Counts Per Channel: ",bkg_counts )
+        layout.addRow("Minimum Channel: ",min_chan)
+        layout.addRow("Maximum Channel: ",max_chan)
+        layout.addRow("Set seed: ",setSeed)
+        
+        layout.addWidget(buttonBox)
+        buttonBox.accepted.connect(testWidget.accept)
+        self.dataWidget.append(
+"""
+Set parameters for test data.""")
+        self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+        
+        testWidget.exec()
+        
+        #If no values are given, it shouldn't create the file 
+        if sample_size1.text()=='' and sample_size2.text()=='' and peak_location1.text()=='' and peak_location1.text()=='' and gauss_width1.text()=='' and gauss_width1.text()=='' and bkg_counts.text()=='' and max_chan.text()=='' and min_chan.text()=='' and setSeed.text()=='':
+            return 
+        
+####### Creates a defualt set of paramters to use if the user doesn't choose any
+        if sample_size1.text()=='':
+            sample_size1.setText('1000')
+            
+            
+        if sample_size2.text()=='':
+            sample_size1.setText('1000')
+            
+        if peak_location1.text()=='':
+            peak_location1.setText('500')
+            
+        if gauss_width1.text()=='':
+            gauss_width1.setText('3')
+            
+            
+        if peak_location2.text()=='':
+            peak_location2.setText('500')
+            
+        if gauss_width2.text()=='':
+            gauss_width2.setText('3')
+            
+        if bkg_counts.text()=='':
+            bkg_counts.setText('10')
+            
+        if max_chan.text()=='':
+            max_chan.setText('1000')
+            
+        if min_chan.text()=='':
+            min_chan.setText('0')
+            
+        if setSeed.text()=='':
+            setSeed.setText('0')
+        #Converts the user input into the parameters for the test   
+        self.sample_size1=int(sample_size1.text())
+        self.sample_size2=int(sample_size2.text())
+        
+        self.mean1=int(peak_location1.text())
+        self.width1=float(gauss_width1.text())
+        
+        self.mean2=int(peak_location2.text())
+        self.width2=float(gauss_width2.text())
+
+        self.bkg_mean=float(bkg_counts.text())
+        self.channel_max=int(max_chan.text())
+        self.channel_min=int(min_chan.text())
+        
+        if self.channel_min>self.channel_max:
+            temp=self.channel_min
+            self.channel_min=self.channel_max
+            self.channel_max=temp
+        ##Adds channels in case the user sets the channel range to 0
+        if self.channel_min==self.channel_max:
+            self.channel_max+=10
+        
+        self.seed=int(setSeed.text())
+
+ 
+        channel_range=self.channel_max-self.channel_min
+        #Sets the number of bins equal to the desired peak width
+
+
+        np.random.seed(self.seed)
+        
+        bin_range=list(range(channel_range+1))
+        bins=[]
+        for i in range(len(bin_range)):
+            bin_=int(bin_range[i])+self.channel_min
+            bins.append(bin_)
+        bins.append(self.channel_max)
+
+        gauss_counts1=[]
+        for i in range(self.sample_size1):
+            gauss_count=np.random.normal(self.mean1,self.width1)
+            gauss_counts1.append(gauss_count)
+            
+        gauss_counts2=[]
+        for i in range(self.sample_size2):
+            gauss_count=np.random.normal(self.mean2,self.width2)
+            gauss_counts2.append(gauss_count)
+
+
+        binned_data1=[]
+        for i in range(len(gauss_counts1)):
+            count=int(round(gauss_counts1[i]))
+            binned_data1.append(count)
+
+        binned_data2=[]
+        for i in range(len(gauss_counts2)):
+            count=int(round(gauss_counts2[i]))
+            binned_data2.append(count)
+
+        final_bins1=[]
+        for i in range(len(bins)):
+            bi=binned_data1.count(bins[i])
+            final_bins1.append(bi)
+            
+            
+        final_bins2=[]
+        for i in range(len(bins)):
+            bi=binned_data2.count(bins[i])
+            final_bins2.append(bi)
+            
+            
+    
+        poiss_counts1=[]
+        for i in range(len(final_bins1)):
+            p_count1=np.random.poisson(final_bins1[i])
+            poiss_counts1.append(p_count1)
+            
+        poiss_counts2=[]
+        for i in range(len(final_bins2)):
+            p_count2=np.random.poisson(final_bins2[i])
+            poiss_counts2.append(p_count2)
+   
+        bkg_counts=[]
+        for i in range(len(final_bins1)):
+            bkg=np.random.poisson(self.bkg_mean)
+            bkg_counts.append(bkg)
+    
+    
+        
+        poiss_counts1=np.array(poiss_counts1)
+        poiss_counts2 = np.array(poiss_counts2)
+        bkg_counts=np.array(bkg_counts)
+
+        total_counts=poiss_counts1+poiss_counts2+bkg_counts
+
+
+        peak_counts1=[]
+        peak_bkg1=[]
+        for i in range(len(final_bins1)):
+            if poiss_counts1[i]>=1:
+                peak_counts1.append(poiss_counts1[i])
+            
+         
+        peak_counts2=[]
+        for i in range(len(final_bins2)):
+            if poiss_counts2[i]>=1:
+                peak_counts2.append(poiss_counts2[i])
+ 
+            
+            
+                
+       
+
+        #Sums all of the data in the Poisson list, corresponding to the means used
+        self.poiss_counts_sum1=np.sum(poiss_counts1)
+        
+        counts1=np.array(poiss_counts1)
+        channels=np.array(bins)
+
+        test_mean1=np.multiply(counts1,channels)
+        self.test_centroid1=np.sum(test_mean1)/(np.sum(counts1))
+        
+            
+        self.netSumUnc1=(np.sum(poiss_counts1))**(1/2)
+
+
+        x_squared=(channels-self.test_centroid1)**2
+        xy=np.multiply(x_squared,poiss_counts1)
+        sum_xy=np.sum(xy)
+        N=np.sum(poiss_counts1)
+        N_1=N-1
+        standev=sum_xy/N_1
+        standev=(standev)**(1/2)
+        self.testStanderr1=standev/((N**(1/2)))
+
+        
+##### Does the same thing for the second peak
+        self.poiss_counts_sum2=np.sum(poiss_counts2)
+        
+        counts2=np.array(poiss_counts2)
+        channels=np.array(bins)
+
+        test_mean2=np.multiply(counts2,channels)
+        self.test_centroid2=np.sum(test_mean2)/(np.sum(counts2))
+        
+            
+        self.netSumUnc2=(np.sum(poiss_counts2))**(1/2)
+
+
+        x_squared=(channels-self.test_centroid2)**2
+        xy=np.multiply(x_squared,poiss_counts2)
+        sum_xy=np.sum(xy)
+        N=np.sum(poiss_counts2)
+        N_1=N-1
+        standev=sum_xy/N_1
+        standev=(standev)**(1/2)
+        self.testStanderr2=standev/((N**(1/2)))
+         
+        
+        #Displays the chosen parameters
+        self.dataWidget.append(
+"""
+PARAMETERS CHOSEN"""+
+"""
+Sample Size 1= """+str(self.sample_size1)+
+"""
+Sample Size 2= """+str(self.sample_size2)+
+"""
+Peak Location 1= Channel= """+str(self.mean1)+
+"""
+Peak Location 2= Channel= """+str(self.mean2)+
+        """
+Width of Peak 1= """+str(self.width1)+
+"""
+Width of Peak 2= """+str(self.width2)+
+        """
+Background Counts Per Channel= """+str(self.bkg_mean)+
+       """
+Maximum Channel= """+str(self.channel_max)+
+       """
+Minimum Channel= """ + str(self.channel_min)+
+"""
+Seed Used= """+str(self.seed))
+        self.dataWidget.moveCursor(QtGui.QTextCursor.End)
+        
+        #Creates a list of the user chosen values and the Poisson sum and centroid
+        test_data_values1=[self.sample_size1,self.mean1,self.width1,self.bkg_mean,self.channel_max,self.channel_min,self.poiss_counts_sum1,self.test_centroid1,self.seed]
+       
+        test_data_values2=[self.sample_size2,self.mean2,self.width2,self.bkg_mean,self.channel_max,self.channel_min,self.poiss_counts_sum2,self.test_centroid2,self.seed]
+        
+        
+        f= open("testing.dat","w+")
+        for i in range(len(total_counts)):
+            f.write("{0}\t{1}\n".format(channels[i],total_counts[i]))
+        parameter_types=["Number of samples","Location of Gaussian","Sigma for Gaussian","Background per channel","End channel","Start channel","Actual signal counts","Actual centroid","Seed used"]
+        f.close()
+        #Makes a file storing the user selected data
+        f=open("test_data_storage.dat","w+")
+        for i in range(len(parameter_types)):
+            if i==6 or i==7:
+                if i==6:
+                    f.write((parameter_types[i]+"= %s" % (str(test_data_values1[i]))))
+                    f.write(" +/- %s\r\n"%(str(self.netSumUnc1)))
+                if i==7:
+                    f.write((parameter_types[i]+"= %s" % (str(test_data_values1[i]))))
+                    f.write(" +/- %s\r\n"%(str(self.testStanderr1)))
+            else:
+                f.write((parameter_types[i]+"= %s\r\n" % (str(test_data_values1[i]))))
+                
+        f.write("\nPEAK 2\n")
+        
+        for i in range(len(parameter_types)):
+            if i==6 or i==7:
+                if i==6:
+                    f.write((parameter_types[i]+"= %s" % (str(test_data_values2[i]))))
+                    f.write(" +/- %s\r\n"%(str(self.netSumUnc2)))
+                if i==7:
+                    f.write((parameter_types[i]+"= %s" % (str(test_data_values2[i]))))
+                    f.write(" +/- %s\r\n"%(str(self.testStanderr2)))
+            else:
+                f.write((parameter_types[i]+"= %s\r\n" % (str(test_data_values2[i]))))
+                
+                
+        f.close()   
+        
+        
+        
+        
+        
+        
+        
     def returnFile(self):
         #Returns the name of the selected file
         clicked_file=self.listWidget.currentItem().text()
@@ -4492,16 +6011,33 @@ Seed Used= """+str(self.seed))
         if fileName.text()!="":
 
             file_name=str(fileName.text())
-        
-            exporter = pg.exporters.ImageExporter(self.plt.plotItem)
-            exporter.params.param('width').setValue(1920, blockSignal=exporter.widthChanged)
-            exporter.params.param('height').setValue(1080, blockSignal=exporter.heightChanged)
-            exporter.export(file_name+".png")
+            
+            file = file_name.split(".")
+            
+            
+            if len(file)==1:
+                exporter = pg.exporters.ImageExporter(self.plt.plotItem)
+                file_name+=".png"
+
+                
+                
+            elif file[1]=="svg":
+                exporter = pg.exporters.SVGExporter(self.plt.plotItem)
+                
+            else:
+                exporter = pg.exporters.ImageExporter(self.plt.plotItem)
+            
+            #exporter.params.param('width').setValue(1920, blockSignal=exporter.widthChanged)
+            #exporter.params.param('height').setValue(1080, blockSignal=exporter.heightChanged)
+            exporter.export(file_name)
             
             self.dataWidget.append(
 """ 
 """+
-str(file_name)+".png saved")
+str(file_name)+" saved")
+        
+            
+            
             self.dataWidget.moveCursor(QtGui.QTextCursor.End)
             
             
