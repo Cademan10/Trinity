@@ -234,7 +234,7 @@ class Spectrum(QMainWindow):
         self.s2 = QSlider(Qt.Horizontal)
         self.s2.setMaximum(100000)
         #self.s2.setTickPosition(QSlider.TicksAbove)
-        self.s2.setSingleStep(1000)
+        self.s2.setSingleStep(1)
         self.s2.setTickInterval(1)
         self.s2.setPageStep(0)
         self.s2.sliderPressed.connect(self.sliderPressed)
@@ -313,6 +313,11 @@ class Spectrum(QMainWindow):
         self.cursor_label.setFixedWidth(150)
         self.cursor_label.setFixedHeight(15)
         self.plt.scene().sigMouseMoved.connect(self.mouseMoved)
+        
+        self.count_label=QLabel("Channel=0")
+        self.count_label.setFixedWidth(150)
+        self.count_label.setFixedHeight(15)
+        self.plt.scene().sigMouseMoved.connect(self.mouseMoved)
     
        
         
@@ -326,7 +331,7 @@ class Spectrum(QMainWindow):
         
         channelLayout=QVBoxLayout(self.mainApp)
         channelLayout.addWidget(self.cursor_label)
-        #channelLayout.addWidget(self.count_label)
+        channelLayout.addWidget(self.count_label)
         channelLayout.addWidget(self.energy_label)
         
         self.grid.addLayout(channelLayout,0,1)
@@ -347,8 +352,8 @@ class Spectrum(QMainWindow):
        
         
         self.calibrateButton=QPushButton(self.mainApp)
-        self.calibrateButton.setFixedWidth(83)
-        self.calibrateButton.setFixedHeight(60)
+        self.calibrateButton.setFixedWidth(90)
+        self.calibrateButton.setFixedHeight(80)
         self.calibrateButton.clicked.connect(self.CalibrateEnergy) 
         
         
@@ -678,7 +683,7 @@ Viewing window cleared""")
             self.posY=y
             
             self.cursor_label.setText("Channel=" +str(int(round(x))))
-            #self.count_label.setText("Counts="+str(int(self.y[int(round(x)-self.x[0])])))
+            self.count_label.setText("Counts="+str(int(self.y[int(round(x)-self.x[0])])))
             
             
             if len(self.energyCallibrationParamters)!=0:
@@ -992,7 +997,10 @@ Region between Channel """ + str(int(self.minx)) +" and Channel " + str(int(self
         if len(self.manualYRange)==1:
             self.yvals=self.manualYRange
         if len(self.manualYRange)==0:
-            self.yvals=[0,max(self.stored_yvals)]
+            try:
+                self.yvals=[0,max(self.stored_yvals)]
+            except:
+                pass
         
                
                     
@@ -4502,7 +4510,8 @@ Select peak and background first!""")
                 
                 
                 if sampleSize.text()=="" and burn.text()=="" and chains.text()=="":
-                    self.gaussFitAction.setChecked(False)
+                    self.gaussFitAction2.setChecked(False)
+                    self.gaussFitAction.setEnabled(True)
                     self.mcmcAction.setEnabled(True)
                     self.sumAction.setEnabled(True)
                     self.dataWidget.append(
@@ -4558,31 +4567,42 @@ No parameters selected""")
                     
                     wEst1 = c1.text()
                     if wEst1 == "":
-                        wEst1 = (self.peakx[-1]-self.peakx[0])/2
+                        wEst1 = (self.peakx[-1]-self.peakx[0])/7
                         
                     wEst2= c2.text()
                     if wEst2 == "":
                         wEst2 = wEst1
                     
                 hInit1 = a1.text()
+                hEst1 = hInit1
                 if hInit1 == "":
-                    hInit1 == np.max(peakCounts)
+                    hInit1 = np.max(peakCounts)
+                    hEst1 = 0
+                  
                     
                 
                 hInit2 = a2.text()
+                hEst2 = hInit2
                 if hInit2 == "":
-                    hInit2 == np.max(peakCounts)
+                    hInit2 = np.max(peakCounts)
+                    hEst2 = 0
                     
                 cInit1 = b1.text()
+                
                 if cInit1 == "":
-                    cInit1 == peakXRange[0]
+                    cInit1 = self.peakx[0]
+             
                     
                 cInit2 = b2.text()
+              
                 if cInit2 == "":
-                    cInit2 == peakXRange[-1]
+                    cInit2 = self.peakx[-1]
+                   
         
                 hInit1 = int(hInit1)
                 hInit2 = int(hInit2)
+                hEst1 = int(hEst1)
+                hEst2 = int(hEst2)
                 cInit1 = int(cInit1)
                 cInit2 = int(cInit2)
                 wEst1 = int(wEst1)
@@ -4597,7 +4617,7 @@ Running Double Gaussian Fitting MCMC...""")
                 
         
                 r_string="""
-  function(peakXRange,hInit1,hInit2,cInit1,cInit2,wEst1,wEst2,peakCounts,back1Chans,back1Counts,back2Chans,back2Counts,mean1,mean2,std1,std2,samples,tune,chainNum,firstChan,lastChan){
+  function(peakXRange,hEst1,hEst2,hInit1,hInit2,cInit1,cInit2,wEst1,wEst2,peakCounts,back1Chans,back1Counts,back2Chans,back2Counts,mean1,mean2,std1,std2,samples,tune,chainNum,firstChan,lastChan){
    
         library("rjags")
         load.module("glm")
@@ -4633,6 +4653,7 @@ widthEst1 <- wEst1
 widthEst2 <- wEst2
 heightEst1 <- hInit1
 heightEst2 <- hInit2
+
 # centEst1<-mean(xchann)-length(xchann)/3
 # centEst2<-mean(xchann)+length(xchann)/3
 
@@ -4682,8 +4703,8 @@ for ( i in 1 : length(xchann) ) {
 
 
 # half-normal prior
-  a1 ~ dnorm(0.0, pow(1000, -2))T(0,)
-  a2 ~ dnorm(0.0, pow(1000, -2))T(0,)
+  a1 ~ dnorm(hEst1, pow(1000, -2))T(0,)
+  a2 ~ dnorm(hEst2, pow(1000, -2))T(0,)
   b1 ~ dunif(firstChan,lastChan)
   
   # b1 is set at the lower bound to ensure b2 (and thus a2 and c2) are associated 
@@ -4692,8 +4713,8 @@ for ( i in 1 : length(xchann) ) {
   
 
   c1 ~dnorm(mean1,pow(std1,-2))T(0,)
-  #c2 ~dnorm(mean2,pow(std2,-3))T(0,)
- c2 ~dnorm(c1,pow(std2,-2))T(0,)
+  c2 ~dnorm(mean2,pow(std2,-2))T(0,)
+ #c2 ~dnorm(c1,pow(std2,-2))T(0,)
   d ~ dnorm(0.0, pow(1000, -2))
   e ~ dnorm(0.0, pow(1000, -2))
 
@@ -4716,6 +4737,8 @@ ourmodel <- jags.model(f, data = list(
 			   obstot = obstot, 
 			  obsbkg1 = obsbkg1,
 			  obsbkg2 = obsbkg2,
+              hEst1 = hEst1,
+              hEst2 = hEst2,
               mean1=mean1,
               mean2=mean2,
               std1=std1,
@@ -4747,7 +4770,7 @@ return(samplesmat)
        
                 
                 rfunc=robjects.r(r_string)
-                trace=np.array(rfunc(peakXRange,hInit1,hInit2,cInit1,cInit2,wEst1,wEst2,peakCounts,back1Chans,back1Counts,back2Chans,back2Counts,mean1,mean2,std1,std2,samples,tune,chainNum,firstChan,lastChan))
+                trace=np.array(rfunc(peakXRange,hEst1,hEst2,hInit1,hInit2,cInit1,cInit2,wEst1,wEst2,peakCounts,back1Chans,back1Counts,back2Chans,back2Counts,mean1,mean2,std1,std2,samples,tune,chainNum,firstChan,lastChan))
 				
                 
                 trace=np.transpose(trace) 
@@ -4805,13 +4828,14 @@ Sigma 1= """+str(sigmaVals1[2])+" + "+str(sigmaVals1[3]-sigmaVals1[2])+"/- "+str
 """
 Sigma 2= """+str(sigmaVals2[2])+" + "+str(sigmaVals2[3]-sigmaVals2[2])+"/- "+str(sigmaVals2[2]-sigmaVals2[1])+
 """
-Centroid 1= """+str(centroid1)+" + "+str(upperC1)+"/- "+str(lowerC1)+
-"""
-Centroid 2= """+str(centroid2)+" + "+str(upperC2)+"/- "+str(lowerC2)+
-"""
 Signal Counts 1= """+str(sigPers1[2])+" + "+str(sigPers1[3]-sigPers1[2])+"/- "+str(sigPers1[2]-sigPers1[1])+
 """
-Signal Counts 2= """+str(sigPers2[2])+" + "+str(sigPers2[3]-sigPers2[2])+"/- "+str(sigPers2[2]-sigPers2[1]))
+Centroid 1= """+str(centroid1)+" + "+str(upperC1)+"/- "+str(lowerC1)+
+"""
+Signal Counts 2= """+str(sigPers2[2])+" + "+str(sigPers2[3]-sigPers2[2])+"/- "+str(sigPers2[2]-sigPers2[1])+
+"""
+Centroid 2= """+str(centroid2)+" + "+str(upperC2)+"/- "+str(lowerC2))
+
                 
                 self.dataWidget.moveCursor(QtGui.QTextCursor.End)                       
    
@@ -5138,7 +5162,7 @@ Signal Counts 2= """+str(sigPers2[2])+" + "+str(sigPers2[3]-sigPers2[2])+"/- "+s
                     pen=pg.mkPen(color=color,width=1)
                     a2_traces.plot(x,y,pen=pen,antialias=True,name="Chain"+str(i+1))
                 
-                self.a2TraceTab=a1_traces
+                self.a2TraceTab=a2_traces
                 self.tabs.addTab(self.a2TraceTab,"Gaussian 2 Height Traces")
                 
                 b1PosPlt=pg.PlotWidget()
@@ -5578,14 +5602,15 @@ Set parameters for test data.""")
             final_bins.append(bi)
     
         poiss_counts=[]
+        bkg_counts=[]
         for i in range(len(final_bins)):
             p_count=np.random.poisson(final_bins[i])
             poiss_counts.append(p_count)
-   
-        bkg_counts=[]
-        for i in range(len(final_bins)):
+            
             bkg=np.random.poisson(self.bkg_mean)
             bkg_counts.append(bkg)
+   
+    
     
         poiss_counts=np.array(poiss_counts)
         bkg_counts=np.array(bkg_counts)
